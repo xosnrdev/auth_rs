@@ -13,7 +13,7 @@ pub struct BadRequest {
 impl BadRequest {
     /// # Summary
     ///
-    /// Create a new BadRequest.
+    /// Create a new instance of BadRequest.
     ///
     /// ## Arguments
     ///
@@ -22,18 +22,19 @@ impl BadRequest {
     /// ## Example
     ///
     /// ```
-    /// use authnorization::errors::BadRequest;
+    /// # use authnorization::errors::BadRequest;
+    ///
     /// let bad_request = BadRequest::new("Bad Request");
     /// ```
     /// ## Returns
     ///
-    /// * `BadRequest` - The new BadRequest.
+    /// * `Self` - The new BadRequest.
     ///
-    pub fn new(message: &str) -> BadRequest {
+    pub fn new(message: &str) -> Self {
         let now: DateTime<Utc> = SystemTime::now().into();
         let now: String = now.to_rfc3339();
 
-        BadRequest {
+        Self {
             message: String::from(message),
             timestamp: now,
             error_code: 400,

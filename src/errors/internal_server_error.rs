@@ -13,7 +13,7 @@ pub struct InternalServerError {
 impl InternalServerError {
     /// # Summary
     ///
-    /// Create a new InternalServerError.
+    /// Create a new instance of InternalServerError.
     ///
     /// ## Arguments
     ///
@@ -22,18 +22,19 @@ impl InternalServerError {
     /// ## Example
     ///
     /// ```
-    /// use authnorization::errors::InternalServerError;
+    /// # use authnorization::errors::InternalServerError;
+    ///
     /// let internal_server_error = InternalServerError::new("Internal Server Error");
     /// ```
     /// ## Returns
     ///
-    /// * `InternalServerError` - The new InternalServerError.
+    /// * `Self` - The new InternalServerError.
     ///
-    pub fn new(message: &str) -> InternalServerError {
+    pub fn new(message: &str) -> Self {
         let now: DateTime<Utc> = SystemTime::now().into();
         let now: String = now.to_rfc3339();
 
-        InternalServerError {
+        Self {
             message: String::from(message),
             timestamp: now,
             error_code: 500,
