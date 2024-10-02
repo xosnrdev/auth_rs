@@ -13,7 +13,7 @@ pub enum Error {
     InvalidSslMode(String),
 }
 
-pub struct EnvReader {}
+pub struct EnvReader;
 
 impl EnvReader {
     pub async fn read_configuration() -> Result<Config, Error> {

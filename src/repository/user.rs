@@ -282,4 +282,26 @@ impl UserRepository {
 
         Ok(users)
     }
+
+    pub async fn verify_email(&self, id: &Uuid) -> Result<(), Error> {
+        let now: DateTime<Utc> = SystemTime::now().into();
+        let result = sqlx::query!(
+            r#"
+            UPDATE users
+            SET email_verified = $1
+            WHERE id = $2
+            "#,
+            now,
+            id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(Error::SQLx)?;
+
+        if result.rows_affected() == 0 {
+            return Err(Error::UserNotFound(id.to_string()));
+        }
+
+        Ok(())
+    }
 }

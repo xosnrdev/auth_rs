@@ -71,4 +71,10 @@ impl UserService {
 
         self.user_repository.search(query).await
     }
+
+    pub async fn verify_email(&self, id: &uuid::Uuid) -> Result<(), Error> {
+        info!("Verifying user email by id: {}", id);
+
+        self.user_repository.verify_email(id).await
+    }
 }
