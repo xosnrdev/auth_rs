@@ -1,4 +1,5 @@
 mod health;
+mod user;
 
 use health::*;
 

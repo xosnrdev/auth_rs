@@ -1,116 +1,62 @@
 use crate::models::User;
 use chrono::{DateTime, Utc};
-use regex::Regex;
-use sqlx::{Error as SQLxError, PgPool};
-use std::time::SystemTime;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct UserRepository {
     pool: PgPool,
-    pub email_regex: Regex,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Empty username")]
-    EmptyUsername,
-    #[error("Empty table")]
-    EmptyTable,
-    #[error("Empty email")]
-    EmptyEmail,
-    #[error("Empty password")]
-    EmptyPassword,
-    #[error("Empty text search")]
-    EmptyTextSearch,
-    #[error("User not found: {0}")]
-    UserNotFound(String),
-    #[error("Username already taken")]
-    UsernameAlreadyTaken,
-    #[error("Email already taken")]
-    EmailAlreadyTaken,
-    #[error("Invalid email address: {0}")]
-    InvalidEmail(String),
-    #[error("SQLx error: {0}")]
-    SQLx(#[from] SQLxError),
 }
 
 impl UserRepository {
-    pub fn new(pool: PgPool, email_regex: Regex) -> Self {
-        UserRepository { pool, email_regex }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
-    pub async fn create(&self, user: User) -> Result<User, Error> {
-        self.validate_user(&user)?;
-
-        if self.exists_username(&user.username).await? {
-            return Err(Error::UsernameAlreadyTaken);
-        }
-
-        if let Some(ref email) = user.email {
-            if self.exists_email(email).await? {
-                return Err(Error::EmailAlreadyTaken);
-            }
-        }
-
-        let result = sqlx::query_as!(
+    pub async fn create(&self, user: &User) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
             User,
             r#"
-            INSERT INTO users (username, email, password)
-            VALUES ($1, $2, $3)
-            RETURNING *
+            INSERT INTO users (id, username, email, password_hash, is_email_verified,  
+                               created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING * 
             "#,
+            user.id,
             user.username,
             user.email,
-            user.password
+            user.password_hash,
+            user.is_email_verified,
+            user.created_at,
+            user.updated_at
         )
         .fetch_one(&self.pool)
-        .await?;
-
-        Ok(result)
+        .await
     }
 
-    fn validate_user(&self, user: &User) -> Result<(), Error> {
-        if user.username.is_empty() {
-            return Err(Error::EmptyUsername);
-        }
-
-        match user.email {
-            Some(ref email) => {
-                if email.is_empty() {
-                    return Err(Error::EmptyEmail);
-                }
-                if !self.email_regex.is_match(email) {
-                    return Err(Error::InvalidEmail(email.to_string()));
-                }
-            }
-            None => return Err(Error::EmptyEmail),
-        }
-
-        if user.password.is_empty() {
-            return Err(Error::EmptyPassword);
-        }
-        Ok(())
+    pub async fn get_by_id(&self, id: &Uuid) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, id)
+            .fetch_optional(&self.pool)
+            .await
     }
 
-    async fn exists_username(&self, username: &str) -> Result<bool, Error> {
-        let user = self.find_by_username(username).await?;
-        Ok(user.is_some())
+    pub async fn get_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as!(User, r#"SELECT * FROM users WHERE email ILIKE $1"#, email)
+            .fetch_optional(&self.pool)
+            .await
     }
 
-    async fn exists_email(&self, email: &str) -> Result<bool, Error> {
-        let user = self.find_by_email(email).await?;
-        Ok(user.is_some())
+    pub async fn get_by_username(&self, username: &str) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"SELECT * FROM users WHERE username ILIKE $1"#,
+            username
+        )
+        .fetch_optional(&self.pool)
+        .await
     }
 
-    pub async fn find_all(
-        &self,
-        limit: Option<i64>,
-        page: Option<i64>,
-    ) -> Result<Vec<User>, Error> {
-        let limit = limit.unwrap_or(10);
-        let offset = page.unwrap_or(0) * limit;
-
-        let users = sqlx::query_as!(
+    pub async fn get_all(&self, limit: i64, offset: i64) -> Result<Vec<User>, sqlx::Error> {
+        sqlx::query_as!(
             User,
             r#"
             SELECT * FROM users
@@ -122,186 +68,123 @@ impl UserRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(Error::SQLx)?;
-
-        if users.is_empty() {
-            return Err(Error::EmptyTable);
-        }
-
-        Ok(users)
     }
 
-    pub async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>, Error> {
-        let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(Error::SQLx)?;
-
-        Ok(user)
-    }
-
-    pub async fn find_by_username(&self, username: &str) -> Result<Option<User>, Error> {
-        if username.is_empty() {
-            return Err(Error::EmptyUsername);
-        }
-
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
-            username
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(Error::SQLx)?;
-
-        Ok(user)
-    }
-
-    pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, Error> {
-        if email.is_empty() {
-            return Err(Error::EmptyEmail);
-        }
-
-        let user = sqlx::query_as!(
-            User,
-            "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
-            email
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(Error::SQLx)?;
-
-        Ok(user)
-    }
-
-    pub async fn update(&self, user: &User) -> Result<User, Error> {
-        match self.find_by_username(&user.username).await {
-            Ok(u) => {
-                if let Some(existing_user) = u {
-                    if existing_user.id != user.id {
-                        return Err(Error::UsernameAlreadyTaken);
-                    }
-                }
-            }
-            Err(e) => return Err(e),
-        }
-
-        if user.email.is_some() {
-            match self.find_by_email(user.email.as_ref().unwrap()).await {
-                Ok(u) => {
-                    if let Some(existing_user) = u {
-                        if existing_user.id != user.id {
-                            return Err(Error::EmailAlreadyTaken);
-                        }
-                    }
-                }
-                Err(e) => return Err(e),
-            }
-        }
-
-        let now: DateTime<Utc> = SystemTime::now().into();
-
-        let result = sqlx::query_as!(
+    pub async fn update(
+        &self,
+        user: &User,
+        updated_at: DateTime<Utc>,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
             User,
             r#"
             UPDATE users
-            SET username = $1, email = $2, updated_at = $3
-            WHERE id = $4
+            SET username = $2, email = $3, password_hash = $4, is_email_verified = $5,
+                updated_at = $6
+            WHERE id = $1
             RETURNING *
             "#,
+            user.id,
             user.username,
             user.email,
-            now,
-            user.id
+            user.password_hash,
+            user.is_email_verified,
+            updated_at
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(Error::SQLx)?;
-
-        Ok(result)
     }
 
-    pub async fn update_password(&self, id: &Uuid, new_password: &str) -> Result<(), Error> {
-        if new_password.is_empty() {
-            return Err(Error::EmptyPassword);
-        }
-
-        let result = sqlx::query!(
+    pub async fn update_password(
+        &self,
+        id: &Uuid,
+        password_hash: &str,
+        updated_at: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
             r#"
             UPDATE users
-            SET password = $1
-            WHERE id = $2
+            SET password_hash = $2, updated_at = $3
+            WHERE id = $1
             "#,
-            new_password,
-            id
+            id,
+            password_hash,
+            updated_at
         )
         .execute(&self.pool)
-        .await
-        .map_err(Error::SQLx)?;
-
-        if result.rows_affected() == 0 {
-            return Err(Error::UserNotFound(id.to_string()));
-        }
-
+        .await?;
         Ok(())
     }
 
-    pub async fn delete(&self, id: &Uuid) -> Result<(), Error> {
-        let result = sqlx::query!("DELETE FROM users WHERE id = $1", id)
+    pub async fn update_email(
+        &self,
+        id: &Uuid,
+        email: &str,
+        updated_at: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE users
+            SET email = $2, is_email_verified = NULL, updated_at = $3
+            WHERE id = $1
+            "#,
+            id,
+            email,
+            updated_at
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn delete(&self, id: &Uuid) -> Result<(), sqlx::Error> {
+        sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id)
             .execute(&self.pool)
-            .await
-            .map_err(Error::SQLx)?;
-
-        if result.rows_affected() == 0 {
-            return Err(Error::UserNotFound(id.to_string()));
-        }
-
+            .await?;
         Ok(())
     }
 
-    pub async fn search(&self, query: &str) -> Result<Vec<User>, Error> {
-        if query.is_empty() {
-            return Err(Error::EmptyTextSearch);
-        }
-
-        let users = sqlx::query_as!(
+    pub async fn search(
+        &self,
+        query: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<User>, sqlx::Error> {
+        let search_query = format!("%{}%", query);
+        sqlx::query_as!(
             User,
             r#"
             SELECT * FROM users
             WHERE username ILIKE $1 OR email ILIKE $1
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
             "#,
-            format!("%{}%", query)
+            search_query,
+            limit,
+            offset
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(Error::SQLx)?;
-
-        if users.is_empty() {
-            return Err(Error::EmptyTable);
-        }
-
-        Ok(users)
     }
 
-    pub async fn verify_email(&self, id: &Uuid) -> Result<(), Error> {
-        let now: DateTime<Utc> = SystemTime::now().into();
+    pub async fn count(&self) -> Result<i64, sqlx::Error> {
+        let result = sqlx::query!(r#"SELECT COUNT(*) as count FROM users"#)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(result.count.unwrap_or(0))
+    }
+
+    pub async fn count_search(&self, query: &str) -> Result<i64, sqlx::Error> {
+        let search_query = format!("%{}%", query);
         let result = sqlx::query!(
             r#"
-            UPDATE users
-            SET email_verified = $1
-            WHERE id = $2
+            SELECT COUNT(*) as count FROM users
+            WHERE username ILIKE $1 OR email ILIKE $1
             "#,
-            now,
-            id
+            search_query
         )
-        .execute(&self.pool)
-        .await
-        .map_err(Error::SQLx)?;
-
-        if result.rows_affected() == 0 {
-            return Err(Error::UserNotFound(id.to_string()));
-        }
-
-        Ok(())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(result.count.unwrap_or(0))
     }
 }

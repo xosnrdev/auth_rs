@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use std::time::SystemTime;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,11 +11,9 @@ pub struct BadRequest {
 
 impl BadRequest {
     pub fn new(message: String) -> Self {
-        let now: DateTime<Utc> = SystemTime::now().into();
-
         Self {
             message,
-            timestamp: now,
+            timestamp: Utc::now(),
             error_code: 400,
         }
     }

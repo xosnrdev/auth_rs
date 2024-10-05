@@ -9,11 +9,7 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    let config = Arc::new(
-        EnvReader::read_configuration()
-            .await
-            .expect("Failed to read configuration"),
-    );
+    let config = Arc::new(EnvReader::read_configuration().await);
 
     let address = format!(
         "{}:{}",

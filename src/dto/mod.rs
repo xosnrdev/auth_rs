@@ -1,7 +1,9 @@
-mod create_user;
-mod login;
-mod login_response;
-mod register_request;
+mod register_user;
+mod reset_email;
+mod reset_password;
+mod update_user;
 
-pub use create_user::*;
-pub use register_request::*;
+pub use register_user::*;
+pub use reset_email::*;
+pub use reset_password::*;
+pub use update_user::*;

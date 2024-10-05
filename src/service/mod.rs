@@ -1,10 +1,12 @@
 mod jwt;
 mod password;
 mod user;
+mod validation;
 
 pub use jwt::*;
 pub use password::*;
 pub use user::*;
+pub use validation::*;
 
 pub struct Services {
     pub user_service: UserService,
