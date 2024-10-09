@@ -12,6 +12,28 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
 }
 
+impl User {
+    pub fn new(
+        id: uuid::Uuid,
+        username: String,
+        email: String,
+        password_hash: String,
+        is_email_verified: Option<bool>,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            id,
+            username,
+            email,
+            password_hash,
+            is_email_verified,
+            created_at,
+            updated_at,
+        }
+    }
+}
+
 impl std::fmt::Display for User {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(

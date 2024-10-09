@@ -24,6 +24,7 @@ pub enum Error {
     TokenExpired,
 }
 
+#[derive(Clone)]
 pub struct JwtService {
     jwt_config: JwtConfig,
 }
@@ -46,7 +47,7 @@ impl JwtService {
             &EncodingKey::from_secret(self.jwt_config.jwt_secret().as_bytes()),
         )
         .map_err(|e| {
-            error!("Error generating JWT token: {}", e);
+            error!("Error generating JWT token: {:?}", e);
             Error::JwtError(e)
         })?;
 
@@ -60,7 +61,7 @@ impl JwtService {
             &jsonwebtoken::Validation::default(),
         )
         .map_err(|e| {
-            error!("Error verifying JWT token: {}", e);
+            error!("Error verifying JWT token: {:?}", e);
             Error::JwtError(e)
         })?;
 

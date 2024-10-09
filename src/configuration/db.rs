@@ -1,17 +1,16 @@
-use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
-#[derive(Deserialize)]
+#[derive(Debug)]
 pub struct DbConfig {
-    pub username: String,
+    username: String,
     password: String,
-    pub port: u16,
-    pub host: String,
-    pub database_name: String,
-    pub ssl_mode: SslMode,
+    port: u16,
+    host: String,
+    name: String,
+    ssl_mode: SslMode,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug)]
 pub enum SslMode {
     Require,
     Prefer,
@@ -24,7 +23,7 @@ impl DbConfig {
         password: String,
         port: u16,
         host: String,
-        database_name: String,
+        name: String,
         ssl_mode: SslMode,
     ) -> Self {
         Self {
@@ -32,7 +31,7 @@ impl DbConfig {
             password,
             port,
             host,
-            database_name,
+            name,
             ssl_mode,
         }
     }
@@ -43,7 +42,7 @@ impl DbConfig {
             .password(&self.password)
             .port(self.port)
             .host(&self.host)
-            .database(&self.database_name)
+            .database(&self.name)
             .ssl_mode(match self.ssl_mode {
                 SslMode::Require => PgSslMode::Require,
                 SslMode::Prefer => PgSslMode::Prefer,

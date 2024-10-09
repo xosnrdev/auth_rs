@@ -1,14 +1,15 @@
 use crate::models::User;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct UserRepository {
-    pool: PgPool,
+    pool: Arc<sqlx::PgPool>,
 }
 
 impl UserRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: Arc<sqlx::PgPool>) -> Self {
         Self { pool }
     }
 
@@ -29,19 +30,19 @@ impl UserRepository {
             user.created_at,
             user.updated_at
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&*self.pool)
         .await
     }
 
     pub async fn get_by_id(&self, id: &Uuid) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as!(User, r#"SELECT * FROM users WHERE id = $1"#, id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&*self.pool)
             .await
     }
 
     pub async fn get_by_email(&self, email: &str) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as!(User, r#"SELECT * FROM users WHERE email ILIKE $1"#, email)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&*self.pool)
             .await
     }
 
@@ -51,7 +52,7 @@ impl UserRepository {
             r#"SELECT * FROM users WHERE username ILIKE $1"#,
             username
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(&*self.pool)
         .await
     }
 
@@ -66,7 +67,7 @@ impl UserRepository {
             limit,
             offset
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await
     }
 
@@ -91,7 +92,7 @@ impl UserRepository {
             user.is_email_verified,
             updated_at
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&*self.pool)
         .await
     }
 
@@ -111,7 +112,7 @@ impl UserRepository {
             password_hash,
             updated_at
         )
-        .execute(&self.pool)
+        .execute(&*self.pool)
         .await?;
         Ok(())
     }
@@ -132,14 +133,14 @@ impl UserRepository {
             email,
             updated_at
         )
-        .execute(&self.pool)
+        .execute(&*self.pool)
         .await?;
         Ok(())
     }
 
     pub async fn delete(&self, id: &Uuid) -> Result<(), sqlx::Error> {
         sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id)
-            .execute(&self.pool)
+            .execute(&*self.pool)
             .await?;
         Ok(())
     }
@@ -163,13 +164,13 @@ impl UserRepository {
             limit,
             offset
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await
     }
 
     pub async fn count(&self) -> Result<i64, sqlx::Error> {
         let result = sqlx::query!(r#"SELECT COUNT(*) as count FROM users"#)
-            .fetch_one(&self.pool)
+            .fetch_one(&*self.pool)
             .await?;
         Ok(result.count.unwrap_or(0))
     }
@@ -183,7 +184,7 @@ impl UserRepository {
             "#,
             search_query
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(result.count.unwrap_or(0))
     }

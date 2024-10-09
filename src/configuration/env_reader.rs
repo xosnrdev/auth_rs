@@ -1,9 +1,11 @@
-use crate::configuration::{Config, DbConfig, JwtConfig, ServerConfig, SslMode};
+use crate::configuration::{DbConfig, JwtConfig, ServerConfig, SslMode};
 use log::{error, info};
 use std::env;
 
+use super::{ConfigOptions, EmailConfig};
+
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum EnvReaderError {
     #[error("Missing environment variable: {0}")]
     MissingEnvVar(String),
     #[error("Invalid environment variable: {0}")]
@@ -15,104 +17,100 @@ pub enum Error {
 pub struct EnvReader;
 
 impl EnvReader {
-    pub async fn read_configuration() -> Config {
-        info!("Reading configuration from environment variables");
+    pub fn new() -> Self {
+        Self
+    }
 
-        let server_addr = env::var("SERVER_ADDR").unwrap_or_else(|_| {
-            info!("SERVER_ADDR not found, using default: 0.0.0.0");
-            "0.0.0.0".to_string()
-        });
+    pub fn get_config(&self) -> Result<ConfigOptions, EnvReaderError> {
+        let server_config = self.get_server_config()?;
+        let db_config = self.get_db_config()?;
+        let jwt_config = self.get_jwt_config()?;
+        let email_config = self.get_email_config()?;
 
-        let server_port = get_required_env_var("SERVER_PORT").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
+        Ok(ConfigOptions {
+            server_config,
+            db_config,
+            jwt_config,
+            email_config,
+        })
+    }
 
-        let server_workers = get_env_var("SERVER_WORKERS", Some(0)).unwrap_or_else(|e| {
-            error!("Invalid SERVER_WORKERS: {}. Using default 0", e);
-            0
-        });
+    fn get_server_config(&self) -> Result<ServerConfig, EnvReaderError> {
+        let server_addr = self.get_env_var("SERVER_ADDR", Some("0.0.0.0".to_string()))?;
+        let server_port = self.get_env_var("SERVER_PORT", Some(8000))?;
+        let server_workers = self.get_env_var("SERVER_WORKERS", Some(4))?;
 
-        let db_username = get_required_env_var("DB_USERNAME").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
+        Ok(ServerConfig::new(server_addr, server_port, server_workers))
+    }
 
-        let db_password = get_required_env_var("DB_PASSWORD").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
+    fn get_db_config(&self) -> Result<DbConfig, EnvReaderError> {
+        let username = self.get_env_var("DB_USERNAME", None)?;
+        let password = self.get_env_var("DB_PASSWORD", None)?;
+        let host = self.get_env_var("DB_HOST", None)?;
+        let port = self.get_env_var("DB_PORT", Some(5432))?;
+        let name = self.get_env_var("DB_NAME", None)?;
+        let get_ssl_mode = self.get_env_var("DB_SSL_MODE", Some("require".to_string()))?;
 
-        let db_port = get_env_var("DB_PORT", Some(5432)).unwrap_or_else(|e| {
-            error!("Invalid DB_PORT: {}. Using default 5432", e);
-            5432
-        });
-
-        let db_host = get_required_env_var("DB_HOST").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
-
-        let db_name = get_required_env_var("DB_NAME").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
-
-        let db_ssl_mode = match env::var("DB_SSL_MODE") {
-            Ok(d) => match d.as_str() {
-                "require" => SslMode::Require,
-                "prefer" => SslMode::Prefer,
-                "disable" => SslMode::Disable,
-                _ => {
-                    error!("Invalid DB_SSL_MODE: {}. Using default: require", d);
-                    SslMode::Require
-                }
-            },
-            Err(_) => {
-                info!("DB_SSL_MODE not found, using default: require");
-                SslMode::Require
+        let ssl_mode = match get_ssl_mode.to_lowercase().as_str() {
+            "require" => SslMode::Require,
+            "prefer" => SslMode::Prefer,
+            "disable" => SslMode::Disable,
+            _ => {
+                return Err(EnvReaderError::InvalidSslMode(get_ssl_mode));
             }
         };
 
-        let jwt_secret = get_required_env_var("JWT_SECRET").unwrap_or_else(|e| {
-            error!("{}", e);
-            panic!("{}", e);
-        });
-
-        let jwt_expiration = get_env_var("JWT_EXPIRATION", Some(3600)).unwrap_or_else(|e| {
-            error!("Invalid JWT_EXPIRATION: {}. Using default 3600", e);
-            3600
-        });
-
-        let db_config = DbConfig::new(
-            db_username,
-            db_password,
-            db_port,
-            db_host,
-            db_name,
-            db_ssl_mode,
-        );
-        let server_config = ServerConfig::new(server_addr, server_port, server_workers);
-        let jwt_config = JwtConfig::new(jwt_secret, jwt_expiration);
-
-        Config::new(server_config, db_config, jwt_config).await
+        Ok(DbConfig::new(
+            username, password, port, host, name, ssl_mode,
+        ))
     }
-}
 
-fn parse_env_var<T: std::str::FromStr>(var_name: &str, value: String) -> Result<T, Error> {
-    value
-        .trim()
-        .parse()
-        .map_err(|_| Error::InvalidEnvVar(var_name.to_string()))
-}
+    fn get_jwt_config(&self) -> Result<JwtConfig, EnvReaderError> {
+        let jwt_secret = self.get_env_var("JWT_SECRET", None)?;
+        let jwt_expiration = self.get_env_var("JWT_EXPIRATION", Some(3600))?;
 
-fn get_env_var<T: std::str::FromStr>(var_name: &str, default: Option<T>) -> Result<T, Error> {
-    env::var(var_name)
-        .map(|val| parse_env_var(var_name, val))
-        .unwrap_or_else(|_| default.ok_or(Error::MissingEnvVar(var_name.to_string())))
-}
+        Ok(JwtConfig::new(jwt_secret, jwt_expiration))
+    }
 
-fn get_required_env_var<T: std::str::FromStr>(var_name: &str) -> Result<T, Error> {
-    let val = env::var(var_name).map_err(|_| Error::MissingEnvVar(var_name.to_string()))?;
-    parse_env_var(var_name, val)
+    fn get_email_config(&self) -> Result<EmailConfig, EnvReaderError> {
+        let server_token = self.get_env_var("SERVER_TOKEN", None)?;
+        let smtp_host = self.get_env_var("SMTP_HOST", None)?;
+        let sender = self.get_env_var("SENDER", None)?;
+        let verification_token_expiration =
+            self.get_env_var("VERIFICATION_TOKEN_EXPIRATION", Some(3600))?;
+
+        Ok(EmailConfig::new(
+            server_token,
+            smtp_host,
+            sender,
+            verification_token_expiration,
+        ))
+    }
+
+    fn parse_env_var<T>(&self, var_name: &str, value: String) -> Result<T, EnvReaderError>
+    where
+        T: std::str::FromStr + std::fmt::Debug,
+    {
+        value
+            .parse()
+            .map_err(|_| EnvReaderError::InvalidEnvVar(var_name.to_string()))
+    }
+
+    fn get_env_var<T>(&self, var_name: &str, default: Option<T>) -> Result<T, EnvReaderError>
+    where
+        T: std::str::FromStr + std::fmt::Debug,
+    {
+        match env::var(var_name) {
+            Ok(val) => self.parse_env_var(var_name, val),
+            Err(_) => {
+                if let Some(d) = default {
+                    info!("Using default value for {}: {:?}", var_name, d);
+                    Ok(d)
+                } else {
+                    error!("Missing required environment variable: {}", var_name);
+                    Err(EnvReaderError::MissingEnvVar(var_name.to_string()))
+                }
+            }
+        }
+    }
 }

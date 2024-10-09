@@ -14,6 +14,7 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_id ON users(id);
 
 -- Accounts Table
 CREATE TABLE accounts (
@@ -79,19 +80,15 @@ CREATE INDEX idx_reset_tokens_token ON reset_tokens(token);
 CREATE INDEX idx_reset_tokens_user_id ON reset_tokens(user_id);
 
 -- Email Verification Tokens Table
-CREATE TABLE email_verification_tokens (
+CREATE TABLE email_verification (
     id UUID PRIMARY KEY,
-    token VARCHAR(255) UNIQUE NOT NULL,
-    user_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    used BOOLEAN NOT NULL,
-    CONSTRAINT fk_user
-        FOREIGN KEY(user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
+    is_used BOOLEAN NOT NULL
 );
 
-CREATE INDEX idx_email_verification_tokens_token ON email_verification_tokens(token);
-CREATE INDEX idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+CREATE INDEX idx_email_verification_token_hash ON email_verification(token_hash);
+CREATE INDEX idx_email_verification_user_id ON email_verification(user_id);

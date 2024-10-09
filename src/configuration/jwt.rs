@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct JwtConfig {
     jwt_secret: String,
     jwt_expiration: i64,
