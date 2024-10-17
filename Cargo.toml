@@ -17,30 +17,22 @@ name = "authnorization"
 chrono = { version = "0.4.38", features = ["clock", "serde"] }
 serde = { version = "1.0.210", features = ["derive"] }
 sqlx = { version = "0.8.2", default-features = false, features = [
-    "runtime-tokio-rustls",
-    "macros",
-    "postgres",
-    "uuid",
-    "chrono",
-    "migrate",
+  "runtime-tokio-rustls",
+  "macros",
+  "postgres",
+  "uuid",
+  "chrono",
+  "migrate",
 ] }
 uuid = { version = "1.10.0", features = ["v4", "serde"] }
 log = "0.4.22"
-tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread"] }
 env_logger = "0.11.5"
 thiserror = "1.0.64"
 dotenv = "0.15.0"
 jsonwebtoken = "9.3.0"
 argon2 = "0.5.3"
 actix-web = "4.9.0"
-serde_json = "1.0.128"
-validator = { version = "0.18.1", features = ["derive"] }
-futures = "0.3.30"
-rand = "0.8.5"
-sha2 = "0.10.8"
-base64 = "0.22.1"
-reqwest = { version = "0.12.8", features = ["json"] }
-
+validator = { version = "0.18.1", features = ["derive"]}
 
 [profile.release]
 lto = true
