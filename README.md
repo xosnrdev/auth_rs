@@ -126,7 +126,6 @@ This MVP is designed as a foundation for future expansions, which include:
 - **Configuration**: Adding support for environment-based configuration and deployment.
 - **Validation**: Enhancing input validation and error handling for better user experience.
 - **Documentation**: Writing more detailed documentation for the service and its features.
-- **Email Verification**: Implementing email verification for new user registration.
 
 It is quite a handful, but these features will make the service more robust and production-ready.
 
