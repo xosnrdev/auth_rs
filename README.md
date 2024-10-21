@@ -2,7 +2,9 @@
 
 ## Overview
 
-This is a simple Authentication service built with the Actix Web framework with SQLx Postgres. The service handles user authentication, including registration and login functionalities. Although it currently does not include access and refresh token mechanisms, it establishes a robust foundation for future extensions like JWT-based token authentication.
+This is a simple Authentication service built with the Actix Web framework with SQLx Postgres. The service handles user
+authentication, including registration and login functionalities. Although it currently does not include access and
+refresh token mechanisms, it establishes a robust foundation for future extensions like JWT-based token authentication.
 
 ## Purpose
 
@@ -11,7 +13,9 @@ The service is designed to offer basic authentication features:
 - **User Registration**: Safely stores user information with hashed passwords.
 - **User Login**: Verifies user credentials and prepares the system for future token-based authentication.
 
-It adheres to industry-standard security practices by utilizing password hashing (via Argon2) and SQLx for interacting with a PostgreSQL database. This service is foundational to a broader authentication system that will later include more advanced features like JWT-based access and refresh tokens.
+It adheres to industry-standard security practices by utilizing password hashing (via Argon2) and SQLx for interacting
+with a PostgreSQL database. This service is foundational to a broader authentication system that will later include more
+advanced features like JWT-based access and refresh tokens.
 
 ---
 
@@ -19,17 +23,18 @@ It adheres to industry-standard security practices by utilizing password hashing
 
 1. **User Registration**
 
-   - Users can register by providing an email and a password which is validated upon request.
-   - The password is hashed using Argon2 before storage, ensuring security even if the database is compromised.
+    - Users can register by providing an email and a password which is validated upon request.
+    - The password is hashed using Argon2 before storage, ensuring security even if the database is compromised.
 
 2. **User Login**
 
-   - Users can log in using their email and password.
-   - Passwords are verified against the hashed values stored in the database.
-   - The service currently authenticates users by matching credentials without issuing tokens (this will be extended).
+    - Users can log in using their email and password.
+    - Passwords are verified against the hashed values stored in the database.
+    - The service currently authenticates users by matching credentials without issuing tokens (this will be extended).
 
 3. **Modular Structure**
-   - Built with flexibility and scalability in mind, the architecture supports future expansions like token generation (JWT) for user sessions, access control, and more.
+    - Built with flexibility and scalability in mind, the architecture supports future expansions like token
+      generation (JWT) for user sessions, access control, and more.
 
 ---
 
@@ -92,8 +97,8 @@ It adheres to industry-standard security practices by utilizing password hashing
   }
   ```
 - **Response**:
-  - `201 Created` on successful registration.
-  - `400 Bad Request` if email is already in use or validation fails.
+    - `201 Created` on successful registration.
+    - `400 Bad Request` if email is already in use or validation fails.
 
 ### **POST /auth/login**
 
@@ -106,8 +111,8 @@ It adheres to industry-standard security practices by utilizing password hashing
   }
   ```
 - **Response**:
-  - `200 OK` on successful login.
-  - `401 Unauthorized` for incorrect credentials.
+    - `200 OK` on successful login.
+    - `401 Unauthorized` for incorrect credentials.
 
 ---
 
@@ -121,9 +126,9 @@ This MVP is designed as a foundation for future expansions, which include:
 - **Tests**: Writing more unit and integration tests to ensure the service's reliability.
 - **Logging**: Implementing structured logging for better monitoring and debugging.
 - **Error Handling**: Improving error responses and handling for better user experience.
-- **Security Enhancements**: Adding more security features like rate limiting, fault tolerance and resilence, CORS, and HTTPS.
+- **Security Enhancements**: Adding more security features like rate limiting, fault tolerance and resilence, CORS, and
+  HTTPS.
 - **Tracing and Metrics**: Integrating tracing and metrics for performance monitoring.
-- **Configuration**: Adding support for environment-based configuration and deployment.
 - **Validation**: Enhancing input validation and error handling for better user experience.
 - **Documentation**: Writing more detailed documentation for the service and its features.
 
