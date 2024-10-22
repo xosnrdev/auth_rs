@@ -1,10 +1,23 @@
-use super::{read_env_var, ConfigBuilder, Result};
+use crate::configuration::ConfigError;
 
-#[derive(Debug, Clone, Default)]
+use super::{read_env_var, ConfigBuilder};
+
+#[derive(Clone)]
 pub struct ServerConfig {
     host: String,
     port: u16,
     workers: usize,
+}
+
+impl Default for ServerConfig {
+    /// Returns a default `ServerConfig`
+    fn default() -> Self {
+        Self {
+            host: String::from("0.0.0.0"),
+            port: 50051,
+            workers: 4,
+        }
+    }
 }
 
 impl ServerConfig {
@@ -12,17 +25,16 @@ impl ServerConfig {
         &self.host
     }
 
-    pub fn get_port(&self) -> u16 {
+    pub const fn get_port(&self) -> u16 {
         self.port
     }
 
-    pub fn get_workers(&self) -> usize {
+    pub const fn get_workers(&self) -> usize {
         self.workers
     }
 }
 
 /// A builder for `ServerConfig`
-#[derive(Debug, Default)]
 pub struct ServerConfigBuilder {
     host: Option<String>,
     port: Option<u16>,
@@ -30,8 +42,12 @@ pub struct ServerConfigBuilder {
 }
 
 impl ServerConfigBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {
+            host: None,
+            port: None,
+            workers: None,
+        }
     }
 
     pub fn with_host(mut self, host: impl Into<String>) -> Self {
@@ -39,12 +55,12 @@ impl ServerConfigBuilder {
         self
     }
 
-    pub fn with_port(mut self, port: u16) -> Self {
+    pub const fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
         self
     }
 
-    pub fn with_workers(mut self, workers: usize) -> Self {
+    pub const fn with_workers(mut self, workers: usize) -> Self {
         self.workers = Some(workers);
         self
     }
@@ -53,30 +69,56 @@ impl ServerConfigBuilder {
 impl ConfigBuilder for ServerConfigBuilder {
     type Config = ServerConfig;
 
-    fn build(&self) -> Result<Self::Config> {
+    fn build(&self) -> Self::Config {
         let host = self
             .host
             .clone()
-            .unwrap_or_else(|| read_env_var("SERVER_HOST").unwrap_or("0.0.0.0".into()));
+            .unwrap_or_else(|| match read_env_var("SERVER_HOST") {
+                Ok(host) => host,
+                Err(e) => {
+                    log::warn!("{}.  Using default {}", e, ServerConfig::default().host);
+                    ServerConfig::default().host
+                }
+            });
 
-        let port = self.port.unwrap_or_else(|| {
-            read_env_var("SERVER_PORT")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(50051)
-        });
+        let port = self
+            .port
+            .unwrap_or_else(|| match read_env_var("SERVER_PORT") {
+                Ok(port) => port.parse().unwrap_or_else(|e| {
+                    log::warn!(
+                        "{}. Using default {}",
+                        ConfigError::from_parse_int_error("SERVER_PORT", e),
+                        ServerConfig::default().port
+                    );
+                    ServerConfig::default().port
+                }),
+                Err(e) => {
+                    log::warn!("{}. Using default {}", e, ServerConfig::default().port);
+                    ServerConfig::default().port
+                }
+            });
 
-        let workers = self.workers.unwrap_or_else(|| {
-            read_env_var("SERVER_WORKERS")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(10)
-        });
+        let workers = self
+            .workers
+            .unwrap_or_else(|| match read_env_var("SERVER_WORKERS") {
+                Ok(workers) => workers.parse().unwrap_or_else(|e| {
+                    log::warn!(
+                        "{}. Using default {}",
+                        ConfigError::from_parse_int_error("SERVER_WORKERS", e),
+                        ServerConfig::default().workers
+                    );
+                    ServerConfig::default().workers
+                }),
+                Err(e) => {
+                    log::warn!("{}. Using default {}", e, ServerConfig::default().workers);
+                    ServerConfig::default().workers
+                }
+            });
 
-        Ok(ServerConfig {
+        ServerConfig {
             host,
             port,
             workers,
-        })
+        }
     }
 }

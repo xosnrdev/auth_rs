@@ -1,4 +1,8 @@
-use super::{read_env_var, ConfigBuilder, ConfigError, Result};
+use std::process;
+
+use crate::configuration::ConfigError;
+
+use super::{read_env_var, ConfigBuilder};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 /// Represents the configuration for a database connection
@@ -12,6 +16,19 @@ pub struct DatabaseConfig {
     ssl_mode: SSLMode,
 }
 
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            username: String::new(),
+            password: String::new(),
+            port: 5432,
+            host: String::from("127.0.0.1"),
+            name: String::new(),
+            ssl_mode: SSLMode::default(),
+        }
+    }
+}
+
 impl DatabaseConfig {
     pub fn get_username(&self) -> &str {
         &self.username
@@ -21,7 +38,7 @@ impl DatabaseConfig {
         &self.password
     }
 
-    pub fn get_port(&self) -> u16 {
+    pub const fn get_port(&self) -> u16 {
         self.port
     }
 
@@ -33,7 +50,7 @@ impl DatabaseConfig {
         &self.name
     }
 
-    pub fn get_ssl_mode(&self) -> &SSLMode {
+    pub const fn get_ssl_mode(&self) -> &SSLMode {
         &self.ssl_mode
     }
 
@@ -50,45 +67,51 @@ impl DatabaseConfig {
 }
 
 /// Represents the SSL mode for the database connection
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SSLMode {
     Require,
+    #[default]
     Prefer,
     Disable,
 }
 
-impl Default for SSLMode {
-    fn default() -> Self {
-        SSLMode::Prefer
-    }
-}
+impl TryFrom<String> for SSLMode {
+    type Error = String;
 
-impl TryFrom<&str> for SSLMode {
-    type Error = ConfigError;
-
-    fn try_from(s: &str) -> Result<Self> {
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "require" => Ok(Self::Require),
             "prefer" => Ok(Self::Prefer),
             "disable" => Ok(Self::Disable),
-            _ => Err(ConfigError::ParseError("SSL_MODE", s.into())),
+            other => Err(format!(
+                "{} is not a supported ssl mode. Use either `require`, `prefer`, or `disable`",
+                other
+            )),
         }
     }
 }
 
 impl SSLMode {
     /// Converts SSLMode to PgSslMode
-    fn to_pg_ssl_mode(&self) -> PgSslMode {
-        match self {
+    const fn to_pg_ssl_mode(&self) -> PgSslMode {
+        match *self {
             SSLMode::Require => PgSslMode::Require,
             SSLMode::Prefer => PgSslMode::Prefer,
             SSLMode::Disable => PgSslMode::Disable,
         }
     }
+
+    const fn as_str(&self) -> &'static str {
+        match *self {
+            SSLMode::Require => "require",
+            SSLMode::Prefer => "prefer",
+            SSLMode::Disable => "disable",
+        }
+    }
 }
 
 /// A builder for `DatabaseConfig`
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DatabaseConfigBuilder {
     username: Option<String>,
     password: Option<String>,
@@ -99,8 +122,15 @@ pub struct DatabaseConfigBuilder {
 }
 
 impl DatabaseConfigBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {
+            username: None,
+            password: None,
+            port: None,
+            host: None,
+            name: None,
+            ssl_mode: None,
+        }
     }
 
     pub fn with_username(mut self, username: impl Into<String>) -> Self {
@@ -113,7 +143,7 @@ impl DatabaseConfigBuilder {
         self
     }
 
-    pub fn with_port(mut self, port: u16) -> Self {
+    pub const fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
         self
     }
@@ -128,7 +158,7 @@ impl DatabaseConfigBuilder {
         self
     }
 
-    pub fn with_ssl_mode(mut self, ssl_mode: SSLMode) -> Self {
+    pub const fn with_ssl_mode(mut self, ssl_mode: SSLMode) -> Self {
         self.ssl_mode = Some(ssl_mode);
         self
     }
@@ -137,43 +167,93 @@ impl DatabaseConfigBuilder {
 impl ConfigBuilder for DatabaseConfigBuilder {
     type Config = DatabaseConfig;
 
-    fn build(&self) -> Result<Self::Config> {
-        let username = self
-            .username
-            .clone()
-            .unwrap_or_else(|| read_env_var("DATABASE_USERNAME").unwrap_or_default());
-        let password = self
-            .password
-            .clone()
-            .unwrap_or_else(|| read_env_var("DATABASE_PASSWORD").unwrap_or_default());
-        let port = self.port.unwrap_or_else(|| {
-            read_env_var("DATABASE_PORT")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(5432)
-        });
+    fn build(&self) -> Self::Config {
+        let username =
+            self.username
+                .clone()
+                .unwrap_or_else(|| match read_env_var("DATABASE_USERNAME") {
+                    Ok(u) => u,
+                    Err(e) => {
+                        log::error!("{}. Exiting...", e);
+                        process::exit(1);
+                    }
+                });
+
+        let password =
+            self.password
+                .clone()
+                .unwrap_or_else(|| match read_env_var("DATABASE_PASSWORD") {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::error!("{}. Exiting...", e);
+                        process::exit(1);
+                    }
+                });
+
+        let port = self
+            .port
+            .unwrap_or_else(|| match read_env_var("DATABASE_PORT") {
+                Ok(p) => p.parse().unwrap_or_else(|e| {
+                    log::warn!(
+                        "{}. Using default {}",
+                        ConfigError::from_parse_int_error("DATABASE_PORT", e),
+                        DatabaseConfig::default().port
+                    );
+                    DatabaseConfig::default().port
+                }),
+                Err(e) => {
+                    log::warn!("{}. Using default {}", e, DatabaseConfig::default().port);
+                    DatabaseConfig::default().port
+                }
+            });
+
         let host = self
             .host
             .clone()
-            .unwrap_or_else(|| read_env_var("DATABASE_HOST").unwrap_or_default());
+            .unwrap_or_else(|| match read_env_var("DATABASE_HOST") {
+                Ok(h) => h,
+                Err(e) => {
+                    log::warn!("{}. Using default {}", e, DatabaseConfig::default().host);
+                    DatabaseConfig::default().host
+                }
+            });
+
         let name = self
             .name
             .clone()
-            .unwrap_or_else(|| read_env_var("DATABASE_NAME").unwrap_or_default());
-        let ssl_mode = self.ssl_mode.clone().unwrap_or_else(|| {
-            read_env_var("DATABASE_SSL_MODE")
-                .ok()
-                .and_then(|s| SSLMode::try_from(s.as_str()).ok())
-                .unwrap_or_default()
-        });
+            .unwrap_or_else(|| match read_env_var("DATABASE_NAME") {
+                Ok(n) => n,
+                Err(e) => {
+                    log::error!("{}. Exiting...", e);
+                    process::exit(1);
+                }
+            });
 
-        Ok(DatabaseConfig {
+        let ssl_mode =
+            self.ssl_mode
+                .clone()
+                .unwrap_or_else(|| match read_env_var("DATABASE_SSL_MODE") {
+                    Ok(s) => SSLMode::try_from(s).unwrap_or_else(|e| {
+                        log::warn!(
+                            "{}. Using default {}",
+                            e,
+                            DatabaseConfig::default().ssl_mode.as_str()
+                        );
+                        DatabaseConfig::default().ssl_mode
+                    }),
+                    Err(e) => {
+                        log::warn!("{}", e);
+                        DatabaseConfig::default().ssl_mode
+                    }
+                });
+
+        DatabaseConfig {
             username,
             password,
             port,
             host,
             name,
             ssl_mode,
-        })
+        }
     }
 }
