@@ -33,6 +33,10 @@ impl Claims {
     pub fn get_email(&self) -> &str {
         &self.email
     }
+
+    pub const fn get_user_id(&self) -> Uuid {
+        self.sub
+    }
 }
 
 pub struct JWT {
