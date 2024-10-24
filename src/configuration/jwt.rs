@@ -21,12 +21,12 @@ impl Default for JWTConfig {
 
 impl JWTConfig {
     pub fn new(
-        secret: String,
+        secret: impl Into<String>,
         refresh_token_duration_day: i64,
         access_token_duration_min: i64,
     ) -> Self {
         Self {
-            secret,
+            secret: secret.into(),
             refresh_token_duration_day,
             access_token_duration_min,
         }
