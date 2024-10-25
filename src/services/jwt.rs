@@ -6,10 +6,10 @@ use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
-#[error("`JWT_ERROR` {0}")]
-pub struct JWTError(#[from] jsonwebtoken::errors::Error);
+#[error("`JWT_SERVICE_ERROR` {0}")]
+pub struct JWTServiceError(#[from] jsonwebtoken::errors::Error);
 
-pub type Result<T> = std::result::Result<T, JWTError>;
+pub type Result<T> = std::result::Result<T, JWTServiceError>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -39,11 +39,12 @@ impl Claims {
     }
 }
 
-pub struct JWT {
+#[derive(Debug, Clone)]
+pub struct JWTService {
     config: JWTConfig,
 }
 
-impl JWT {
+impl JWTService {
     pub const fn new(config: JWTConfig) -> Self {
         Self { config }
     }
@@ -55,7 +56,7 @@ impl JWT {
             &claims,
             &EncodingKey::from_secret(self.config.get_secret().as_ref()),
         )
-        .map_err(JWTError)
+        .map_err(JWTServiceError)
     }
 
     pub fn decode(&self, token: &str) -> Result<TokenData<Claims>> {
@@ -93,9 +94,9 @@ impl JWT {
 mod tests {
     use super::*;
 
-    fn create_jwt() -> JWT {
+    fn create_jwt() -> JWTService {
         let config = JWTConfig::new("test_secret", 7, 15);
-        JWT::new(config)
+        JWTService::new(config)
     }
 
     #[test]
