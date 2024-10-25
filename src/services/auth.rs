@@ -1,32 +1,37 @@
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::{
-    dto::{AuthResponse, AuthStatus, TokenDetails},
-    models::{Credentials, RefreshToken, User},
+    dto::{
+        AuthResponse, AuthStatus, AuthenticateDto, RegisterDto, TokenDetails, UpdateEmailDto,
+        UpdatePasswordDto,
+    },
+    models::{RefreshToken, User},
     services::UserServiceError,
-    utils::{AuthServiceError, Hashing, JWT},
+    utils::{AuthServiceError, Hashing},
 };
 
-use super::{RefreshTokenService, UserService};
+use super::{JWTService, RefreshTokenService, UserService};
 
 type Result<T> = std::result::Result<T, AuthServiceError>;
 
-pub struct AuthService<'a> {
-    user_service: UserService<'a>,
-    refresh_token_service: RefreshTokenService<'a>,
-    jwt: JWT,
+#[derive(Debug, Clone)]
+pub struct AuthService {
+    user_service: UserService,
+    refresh_token_service: RefreshTokenService,
+    jwt_service: JWTService,
 }
 
-impl<'a> AuthService<'a> {
+impl AuthService {
     pub fn new(
-        user_service: UserService<'a>,
-        refresh_token_service: RefreshTokenService<'a>,
-        jwt: JWT,
+        user_service: UserService,
+        refresh_token_service: RefreshTokenService,
+        jwt_service: JWTService,
     ) -> Self {
         Self {
             user_service,
             refresh_token_service,
-            jwt,
+            jwt_service,
         }
     }
 
@@ -34,29 +39,21 @@ impl<'a> AuthService<'a> {
         let token = self
             .refresh_token_service
             .create(user_id, refresh_token)
-            .await
-            .map_err(AuthServiceError::from)?;
+            .await?;
 
         Ok(token)
     }
 
     async fn generate_tokens(&self, user_id: Uuid, email: &str) -> Result<TokenDetails> {
-        let mut refresh_token = self
-            .jwt
-            .generate_refresh_token(user_id, &email)
-            .map_err(AuthServiceError::from)?;
+        let mut refresh_token = self.jwt_service.generate_refresh_token(user_id, &email)?;
 
-        let token_details = self.refresh_access_token(&refresh_token).await?;
+        let token_details = self.refresh_token(&refresh_token).await?;
 
         let access_token = token_details.get_token();
 
-        let expires_in = self.jwt.get_expires_in(access_token)?;
+        let expires_in = self.jwt_service.get_expires_in(access_token)?;
 
-        let x_refresh_token = self
-            .refresh_token_service
-            .get_by_user_id(user_id)
-            .await
-            .map_err(AuthServiceError::from)?;
+        let x_refresh_token = self.refresh_token_service.get_by_user_id(user_id).await?;
 
         let stored_refresh_token = match x_refresh_token {
             Some(r_token) => r_token,
@@ -67,10 +64,7 @@ impl<'a> AuthService<'a> {
         };
 
         if stored_refresh_token.is_expired() || stored_refresh_token.is_revoked() {
-            self.refresh_token_service
-                .delete(user_id)
-                .await
-                .map_err(AuthServiceError::from)?;
+            self.refresh_token_service.delete(user_id).await?;
 
             self.store_token(user_id, &refresh_token).await?;
         } else {
@@ -80,8 +74,10 @@ impl<'a> AuthService<'a> {
         Ok(TokenDetails::new(access_token, expires_in, refresh_token))
     }
 
-    pub async fn register(&self, cred: Credentials) -> Result<AuthResponse> {
-        let x_user = self.user_service.get_by_email(&cred.email).await?;
+    pub async fn register(&self, dto: RegisterDto) -> Result<AuthResponse> {
+        dto.validate()?;
+
+        let x_user = self.user_service.get_by_email(&dto.email).await?;
 
         if x_user.is_some() {
             return Err(AuthServiceError::UserServiceError(
@@ -89,13 +85,9 @@ impl<'a> AuthService<'a> {
             ));
         }
 
-        let password_hash = Hashing::hash(&cred.password)?;
+        let password_hash = Hashing::hash(&dto.password)?;
 
-        let user = self
-            .user_service
-            .create(&cred.email, &password_hash)
-            .await
-            .map_err(AuthServiceError::from)?;
+        let user = self.user_service.create(&dto.email, &password_hash).await?;
 
         let token_details = self.generate_tokens(user.id, &user.email).await?;
 
@@ -105,15 +97,17 @@ impl<'a> AuthService<'a> {
         ))
     }
 
-    pub async fn authenticate(&self, cred: Credentials) -> Result<AuthResponse> {
-        let x_user = self.user_service.get_by_email(&cred.email).await?;
+    pub async fn authenticate(&self, dto: AuthenticateDto) -> Result<AuthResponse> {
+        dto.validate()?;
+
+        let x_user = self.user_service.get_by_email(&dto.email).await?;
 
         let user = match x_user {
             Some(user) => user,
             None => return Err(AuthServiceError::InvalidCredentials),
         };
 
-        if !Hashing::verify(&cred.password, &user.password_hash)? {
+        if !Hashing::verify(&dto.password, &user.password_hash)? {
             return Err(AuthServiceError::InvalidCredentials);
         }
 
@@ -125,23 +119,23 @@ impl<'a> AuthService<'a> {
         ))
     }
 
-    pub async fn refresh_access_token(&self, refresh_token: &str) -> Result<TokenDetails> {
-        let x_token = self.validate_refresh_token(refresh_token).await?;
+    /// Refreshes an access token
+    /// Returns a `TokenDetails` struct
+    /// Where `TokenDetails` contains the new access token and its expiration time
+    pub async fn refresh_token(&self, refresh_token: &str) -> Result<TokenDetails> {
+        let x_token = self.validate_token(refresh_token).await?;
 
         match x_token {
             TokenValidity::Invalid => return Err(AuthServiceError::InvalidToken),
             TokenValidity::Valid(r_token) => {
-                let token_data = self.jwt.decode(&r_token.token)?;
+                let token_data = self.jwt_service.validate_refresh_token(&r_token.token)?;
 
-                let access_token = self
-                    .jwt
-                    .generate_access_token(
-                        token_data.claims.get_user_id(),
-                        &token_data.claims.get_email(),
-                    )
-                    .map_err(AuthServiceError::from)?;
+                let access_token = self.jwt_service.generate_access_token(
+                    token_data.claims.get_user_id(),
+                    &token_data.claims.get_email(),
+                )?;
 
-                let expires_in = self.jwt.get_expires_in(&access_token)?;
+                let expires_in = self.jwt_service.get_expires_in(&access_token)?;
 
                 let token_details = TokenDetails::new(&access_token, expires_in, None);
 
@@ -150,7 +144,10 @@ impl<'a> AuthService<'a> {
         }
     }
 
-    async fn validate_refresh_token(&self, refresh_token: &str) -> Result<TokenValidity> {
+    /// Utility function to validate a refresh token
+    /// Returns a `TokenValidity` enum
+    /// Where `TokenValidity::Valid` contains the `RefreshToken` struct
+    async fn validate_token(&self, refresh_token: &str) -> Result<TokenValidity> {
         let x_token = self
             .refresh_token_service
             .get_by_token(refresh_token)
@@ -161,7 +158,10 @@ impl<'a> AuthService<'a> {
             Some(r_token) => {
                 if r_token.is_expired()
                     || r_token.is_revoked()
-                    || self.jwt.decode(refresh_token).is_err()
+                    || self
+                        .jwt_service
+                        .validate_refresh_token(&r_token.token)
+                        .is_err()
                 {
                     self.refresh_token_service.delete(r_token.user_id).await?;
                     return Ok(TokenValidity::Invalid);
@@ -172,7 +172,7 @@ impl<'a> AuthService<'a> {
     }
 
     pub async fn logout(&self, refresh_token: &str) -> Result<AuthResponse> {
-        let x_token = self.validate_refresh_token(refresh_token).await?;
+        let x_token = self.validate_token(refresh_token).await?;
 
         match x_token {
             TokenValidity::Invalid => return Err(AuthServiceError::InvalidToken),
@@ -184,7 +184,7 @@ impl<'a> AuthService<'a> {
     }
 
     pub async fn delete_me(&self, access_token: &str) -> Result<AuthResponse> {
-        let x_token = self.jwt.decode(access_token)?;
+        let x_token = self.jwt_service.validate_access_token(access_token)?;
 
         let user_id = x_token.claims.get_user_id();
 
@@ -199,7 +199,7 @@ impl<'a> AuthService<'a> {
     }
 
     pub async fn get_me(&self, refresh_token: &str) -> Result<User> {
-        let x_token = self.validate_refresh_token(refresh_token).await?;
+        let x_token = self.validate_token(refresh_token).await?;
 
         match x_token {
             TokenValidity::Invalid => return Err(AuthServiceError::InvalidToken),
@@ -222,8 +222,10 @@ impl<'a> AuthService<'a> {
         todo!()
     }
 
-    pub async fn update_email(&self, access_token: &str, new_email: &str) -> Result<AuthResponse> {
-        let x_token = self.jwt.decode(access_token)?;
+    pub async fn update_email(&self, dto: UpdateEmailDto) -> Result<AuthResponse> {
+        dto.validate()?;
+
+        let x_token = self.jwt_service.validate_access_token(&dto.access_token)?;
 
         let user_id = x_token.claims.get_user_id();
 
@@ -231,7 +233,9 @@ impl<'a> AuthService<'a> {
 
         match x_user {
             Some(user) => {
-                self.user_service.update_email(user.id, new_email).await?;
+                self.user_service
+                    .update_email(user.id, &dto.new_email)
+                    .await?;
 
                 // Invalidate all sessions
                 self.refresh_token_service.delete(user.id).await?;
@@ -247,12 +251,10 @@ impl<'a> AuthService<'a> {
         }
     }
 
-    pub async fn update_password(
-        &self,
-        access_token: &str,
-        new_password: &str,
-    ) -> Result<AuthResponse> {
-        let x_token = self.jwt.decode(access_token)?;
+    pub async fn update_password(&self, dto: UpdatePasswordDto) -> Result<AuthResponse> {
+        dto.validate()?;
+
+        let x_token = self.jwt_service.validate_access_token(&dto.access_token)?;
 
         let user_id = x_token.claims.get_user_id();
 
@@ -260,7 +262,7 @@ impl<'a> AuthService<'a> {
 
         match x_user {
             Some(user) => {
-                let password_hash = Hashing::hash(new_password)?;
+                let password_hash = Hashing::hash(&dto.new_password)?;
 
                 self.user_service
                     .update_password(user.id, &password_hash)
@@ -295,7 +297,12 @@ impl<'a> AuthService<'a> {
     }
 }
 
+/// Enum to represent the validity of a token
+/// is is neccessary where we could use a simple utility boolean function?
+/// Yes we could, but we want to extract the `RefreshToken` struct if the token is valid not just specific error messages
 enum TokenValidity {
+    /// Contains a `RefreshToken` struct
     Valid(RefreshToken),
+    /// Token is invalid
     Invalid,
 }
