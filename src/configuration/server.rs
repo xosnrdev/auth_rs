@@ -2,7 +2,7 @@ use crate::configuration::ConfigError;
 
 use super::{read_env_var, ConfigBuilder};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ServerConfig {
     host: String,
     port: u16,
