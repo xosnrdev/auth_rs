@@ -2,9 +2,17 @@ use std::{
     env::{var, VarError},
     num::ParseIntError,
     process,
+    sync::Arc,
 };
 
+use chrono::{Duration, Utc};
+use sqlx::PgPool;
 use thiserror::Error;
+
+use crate::{
+    repositories::{RefreshTokenRepository, UserRepository},
+    services::{AuthService, JWTService, RefreshTokenService, Services, UserService},
+};
 
 use super::{
     DatabaseConfig, DatabaseConfigBuilder, Environment, JWTConfig, JWTConfigBuilder, ServerConfig,
@@ -48,7 +56,7 @@ pub fn read_env_var(var_name: &'static str) -> Result<String> {
 }
 
 /// Holds the complete application configuration.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AppConfig {
     server: ServerConfig,
     database: DatabaseConfig,
@@ -178,5 +186,64 @@ impl ConfigBuilder for AppConfigBuilder {
             environment,
             jwt,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AppState {
+    app_config: AppConfig,
+    services: Services,
+    pool: Arc<PgPool>,
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        let server_config = ServerConfigBuilder::new();
+        let database_config = DatabaseConfigBuilder::new();
+        let jwt_config = JWTConfigBuilder::new();
+        let app_config = AppConfigBuilder::new()
+            .with_server(server_config)
+            .with_database(database_config)
+            .with_jwt(jwt_config)
+            .build();
+        let pool = Arc::new(PgPool::connect_lazy_with(
+            app_config.get_database().to_pg_connect_options(),
+        ));
+
+        let user_repository = UserRepository::new(Arc::clone(&pool));
+        let user_service = UserService::new(user_repository);
+
+        // convert from timestamp to DateTime<Utc>
+        let days = app_config.get_jwt().get_refresh_token_duration_day();
+        let duration = Duration::days(days);
+
+        let refresh_token_duration_days = Utc::now() + duration;
+
+        let refresh_token_repository = RefreshTokenRepository::new(Arc::clone(&pool));
+        let refresh_token_service =
+            RefreshTokenService::new(refresh_token_repository, refresh_token_duration_days);
+        let jwt_service = JWTService::new(app_config.get_jwt().clone());
+
+        let auth_service = AuthService::new(user_service, refresh_token_service, jwt_service);
+
+        let services = Services::new(auth_service);
+
+        Self {
+            app_config,
+            services,
+            pool,
+        }
+    }
+
+    pub const fn get_services(&self) -> &Services {
+        &self.services
+    }
+
+    pub fn get_pool(&self) -> Arc<PgPool> {
+        Arc::clone(&self.pool)
+    }
+
+    pub const fn get_app_config(&self) -> &AppConfig {
+        &self.app_config
     }
 }
