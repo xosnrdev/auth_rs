@@ -1,13 +1,14 @@
 use std::convert::From;
 
 use thiserror::Error;
+use validator::ValidationErrors;
 
 use crate::{
     dto::{AuthResponse, ErrorDetails},
-    services::{RefreshTokenServiceError, UserServiceError},
+    services::{JWTServiceError, RefreshTokenServiceError, UserServiceError},
 };
 
-use super::{HashingError, JWTError};
+use super::{HashingError, TokenExtractionError};
 
 #[derive(Debug, Error)]
 pub enum AuthServiceError {
@@ -27,7 +28,13 @@ pub enum AuthServiceError {
     HashingError(#[from] HashingError),
 
     #[error("transparent")]
-    JWTError(#[from] JWTError),
+    JWTServiceError(#[from] JWTServiceError),
+
+    #[error(transparent)]
+    ValidationError(#[from] ValidationErrors),
+
+    #[error(transparent)]
+    TokenExtractionError(#[from] TokenExtractionError),
 
     #[error("An internal server error occurred")]
     InternalServerError,
@@ -45,71 +52,70 @@ impl From<AuthServiceError> for AuthResponse {
             AuthServiceError::InvalidCredentials => ErrorDetails {
                 error: "invalid_credentials",
                 error_description: error.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
 
             AuthServiceError::TokenExpired => ErrorDetails {
                 error: "token_expired",
                 error_description: error.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
 
             AuthServiceError::UserServiceError(e) => ErrorDetails {
                 error: "user_service_error",
                 error_description: e.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
 
             AuthServiceError::RefreshTokenServiceError(e) => ErrorDetails {
                 error: "refresh_token_error",
                 error_description: e.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
 
             AuthServiceError::HashingError(e) => ErrorDetails {
                 error: "hashing_error",
                 error_description: e.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6151".to_string()),
             },
 
-            AuthServiceError::JWTError(e) => ErrorDetails {
+            AuthServiceError::JWTServiceError(e) => ErrorDetails {
                 error: "jwt_error",
                 error_description: e.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc7519".to_string()),
+            },
+
+            AuthServiceError::ValidationError(e) => ErrorDetails {
+                error: "validation_error",
+                error_description: e.to_string(),
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+            },
+
+            AuthServiceError::TokenExtractionError(e) => ErrorDetails {
+                error: "token_extraction_error",
+                error_description: e.to_string(),
+                error_uri: Some("https://tools.ietf.org/html/rfc6750#section-3.1".to_string()),
             },
 
             AuthServiceError::InternalServerError => ErrorDetails {
                 error: "internal_server_error",
                 error_description: error.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
 
             AuthServiceError::InvalidToken => ErrorDetails {
                 error: "invalid_token",
                 error_description: error.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6750#section-3.1".to_string()),
             },
 
             AuthServiceError::UnexpectedError => ErrorDetails {
                 error: "unexpected_error",
                 error_description: error.to_string(),
-                error_uri: None,
+                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
             },
         };
 
         AuthResponse::error(error_details)
-    }
-}
-
-pub trait IntoAuthResponse<T> {
-    fn into_auth_response(self) -> AuthResponse;
-}
-
-impl<T> IntoAuthResponse<T> for Result<T, AuthServiceError> {
-    fn into_auth_response(self) -> AuthResponse {
-        match self {
-            Ok(_) => panic!("into_auth_response called on Ok variant"),
-            Err(e) => e.into(),
-        }
     }
 }
