@@ -15,12 +15,13 @@ pub enum UserServiceError {
 
 type Result<T> = std::result::Result<T, UserServiceError>;
 
-pub struct UserService<'a> {
-    repository: UserRepository<'a>,
+#[derive(Debug, Clone)]
+pub struct UserService {
+    repository: UserRepository,
 }
 
-impl<'a> UserService<'a> {
-    pub fn new(repository: UserRepository<'a>) -> Self {
+impl UserService {
+    pub fn new(repository: UserRepository) -> Self {
         Self { repository }
     }
 
@@ -56,39 +57,51 @@ impl<'a> UserService<'a> {
         Ok(users)
     }
 
-    pub async fn update_email(&self, id: Uuid, email: &str) -> Result<User> {
-        let user = self.repository.get_by_id(id).await?;
+    pub async fn update_email(&self, id: Uuid, new_email: &str) -> Result<User> {
+        let x_user = self.repository.get_by_id(id).await?;
 
-        if user.is_none() {
-            return Err(UserServiceError::UserNotFound);
+        match x_user {
+            Some(user) => {
+                let x_user = self.repository.get_by_email(new_email).await?;
+
+                if x_user.is_some() {
+                    return Err(UserServiceError::UserAlreadyExists);
+                }
+
+                let updated_user = self.repository.update_email(user.id, new_email).await?;
+
+                Ok(updated_user)
+            }
+            None => return Err(UserServiceError::UserNotFound),
         }
-
-        let updated_user = self.repository.update_email(id, email).await?;
-
-        Ok(updated_user)
     }
 
-    pub async fn update_password(&self, id: Uuid, password_hash: &str) -> Result<User> {
-        let user = self.repository.get_by_id(id).await?;
+    pub async fn update_password(&self, id: Uuid, new_password_hash: &str) -> Result<User> {
+        let x_user = self.repository.get_by_id(id).await?;
 
-        if user.is_none() {
-            return Err(UserServiceError::UserNotFound);
+        match x_user {
+            Some(user) => {
+                let updated_user = self
+                    .repository
+                    .update_password(user.id, new_password_hash)
+                    .await?;
+
+                Ok(updated_user)
+            }
+            None => return Err(UserServiceError::UserNotFound),
         }
-
-        let updated_user = self.repository.update_password(id, password_hash).await?;
-
-        Ok(updated_user)
     }
 
     pub async fn delete(&self, id: Uuid) -> Result<()> {
-        let user = self.repository.get_by_id(id).await?;
+        let x_user = self.repository.get_by_id(id).await?;
 
-        if user.is_none() {
-            return Err(UserServiceError::UserNotFound);
+        match x_user {
+            Some(user) => {
+                self.repository.delete(user.id).await?;
+
+                Ok(())
+            }
+            None => return Err(UserServiceError::UserNotFound),
         }
-
-        self.repository.delete(id).await?;
-
-        Ok(())
     }
 }
