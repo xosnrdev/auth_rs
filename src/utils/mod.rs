@@ -1,9 +1,9 @@
 mod error;
+mod extractor;
 mod hashing;
-mod jwt;
 mod validation;
 
 pub use error::*;
+pub use extractor::*;
 pub use hashing::*;
-pub use jwt::*;
 pub use validation::*;
