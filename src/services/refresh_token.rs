@@ -16,14 +16,15 @@ pub enum RefreshTokenServiceError {
 
 type Result<T> = std::result::Result<T, RefreshTokenServiceError>;
 
-pub struct RefreshTokenService<'a> {
-    repository: RefreshTokenRepository<'a>,
+#[derive(Debug, Clone)]
+pub struct RefreshTokenService {
+    repository: RefreshTokenRepository,
     refresh_token_duration_days: DateTime<Utc>,
 }
 
-impl<'a> RefreshTokenService<'a> {
+impl RefreshTokenService {
     pub fn new(
-        repository: RefreshTokenRepository<'a>,
+        repository: RefreshTokenRepository,
         refresh_token_duration_days: DateTime<Utc>,
     ) -> Self {
         Self {
