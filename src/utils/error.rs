@@ -52,67 +52,67 @@ impl From<AuthServiceError> for AuthResponse {
             AuthServiceError::InvalidCredentials => ErrorDetails {
                 error: "invalid_credentials",
                 error_description: error.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::TokenExpired => ErrorDetails {
                 error: "token_expired",
                 error_description: error.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::UserServiceError(e) => ErrorDetails {
                 error: "user_service_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::RefreshTokenServiceError(e) => ErrorDetails {
                 error: "refresh_token_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::HashingError(e) => ErrorDetails {
                 error: "hashing_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6151".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6151",
             },
 
             AuthServiceError::JWTServiceError(e) => ErrorDetails {
                 error: "jwt_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc7519".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc7519",
             },
 
             AuthServiceError::ValidationError(e) => ErrorDetails {
                 error: "validation_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::TokenExtractionError(e) => ErrorDetails {
                 error: "token_extraction_error",
                 error_description: e.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6750#section-3.1".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6750#section-3.1",
             },
 
             AuthServiceError::InternalServerError => ErrorDetails {
                 error: "internal_server_error",
                 error_description: error.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
 
             AuthServiceError::InvalidToken => ErrorDetails {
                 error: "invalid_token",
                 error_description: error.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6750#section-3.1".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6750#section-3.1",
             },
 
             AuthServiceError::UnexpectedError => ErrorDetails {
                 error: "unexpected_error",
                 error_description: error.to_string(),
-                error_uri: Some("https://tools.ietf.org/html/rfc6749#section-5.2".to_string()),
+                error_uri: "https://tools.ietf.org/html/rfc6749#section-5.2",
             },
         };
 
