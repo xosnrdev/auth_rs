@@ -1,4 +1,5 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use validator::Validate;
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
@@ -61,8 +62,7 @@ pub struct ErrorDetails {
 
     pub error_description: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_uri: Option<String>,
+    pub error_uri: &'static str,
 }
 
 impl AuthResponse {
@@ -99,4 +99,26 @@ impl AuthResponse {
     pub fn is_success(&self) -> bool {
         matches!(self.status, AuthStatus::Success)
     }
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct RegisterDto {
+    #[validate(email, custom(function = "crate::utils::Validation::email"))]
+    #[serde(rename = "lowercase")]
+    pub email: String,
+
+    #[validate(
+        length(min = 8, max = 128),
+        custom(function = "crate::utils::Validation::password")
+    )]
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct AuthenticateDto {
+    #[validate(email)]
+    #[serde(rename = "lowercase")]
+    pub email: String,
+
+    pub password: String,
 }

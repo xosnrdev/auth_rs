@@ -2,23 +2,19 @@ use serde::Deserialize;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
-#[serde(rename_all = "lowercase")]
-pub struct RegisterDto {
+pub struct UpdateEmailDto {
     #[validate(email, custom(function = "crate::utils::Validation::email"))]
-    pub email: String,
+    #[serde(rename = "lowercase")]
+    pub new_email: String,
+    pub access_token: String,
+}
 
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdatePasswordDto {
     #[validate(
         length(min = 8, max = 128),
         custom(function = "crate::utils::Validation::password")
     )]
-    pub password: String,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-#[serde(rename_all = "lowercase")]
-pub struct LoginDto {
-    #[validate(email)]
-    pub email: String,
-
-    pub password: String,
+    pub new_password: String,
+    pub access_token: String,
 }
