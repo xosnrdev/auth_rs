@@ -59,7 +59,7 @@ pub fn extract_jwt_token(req: &HttpRequest) -> Result<&str, TokenExtractionError
         .ok_or(TokenExtractionError::MissingAuthorizationHeader)?;
 
     // Convert header to string
-    let auth_str = auth_header.to_str().map_err(TokenExtractionError::from)?;
+    let auth_str = auth_header.to_str()?;
 
     // Validate header format
     if !auth_str.starts_with(constants::BEARER_PREFIX) {
