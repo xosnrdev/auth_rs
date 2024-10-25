@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use crate::models::RefreshToken;
 use chrono::Utc;
 use sqlx::{Error, PgPool};
 use uuid::Uuid;
 
 type Result<T> = std::result::Result<T, Error>;
-pub struct RefreshTokenRepository<'a> {
-    pool: &'a PgPool,
+
+#[derive(Debug, Clone)]
+pub struct RefreshTokenRepository {
+    pool: Arc<PgPool>,
 }
 
-impl<'a> RefreshTokenRepository<'a> {
-    pub fn new(pool: &'a PgPool) -> Self {
+impl RefreshTokenRepository {
+    pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 
@@ -29,7 +33,7 @@ impl<'a> RefreshTokenRepository<'a> {
             token.created_at,
             token.updated_at
         )
-        .fetch_one(self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(token)
     }
@@ -43,7 +47,7 @@ impl<'a> RefreshTokenRepository<'a> {
             "#,
             user_id
         )
-        .fetch_optional(self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
 
         Ok(token)
@@ -58,7 +62,7 @@ impl<'a> RefreshTokenRepository<'a> {
             "#,
             token
         )
-        .fetch_optional(self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
 
         Ok(token)
@@ -76,7 +80,7 @@ impl<'a> RefreshTokenRepository<'a> {
             Utc::now(),
             user_id
         )
-        .fetch_one(self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(token)
     }
@@ -89,7 +93,7 @@ impl<'a> RefreshTokenRepository<'a> {
             "#,
             user_id
         )
-        .execute(self.pool)
+        .execute(&*self.pool)
         .await?;
         Ok(())
     }

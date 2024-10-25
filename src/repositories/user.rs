@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::Utc;
 use sqlx::{Error, PgPool};
 use uuid::Uuid;
@@ -5,12 +7,14 @@ use uuid::Uuid;
 use crate::models::User;
 
 type Result<T> = std::result::Result<T, Error>;
-pub struct UserRepository<'a> {
-    pool: &'a PgPool,
+
+#[derive(Debug, Clone)]
+pub struct UserRepository {
+    pool: Arc<PgPool>,
 }
 
-impl<'a> UserRepository<'a> {
-    pub fn new(pool: &'a PgPool) -> Self {
+impl UserRepository {
+    pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 
@@ -28,7 +32,7 @@ impl<'a> UserRepository<'a> {
             user.created_at,
             user.updated_at
         )
-        .fetch_one(self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(user)
     }
@@ -42,7 +46,7 @@ impl<'a> UserRepository<'a> {
             "#,
             id
         )
-        .fetch_optional(self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
         Ok(user)
     }
@@ -56,7 +60,7 @@ impl<'a> UserRepository<'a> {
             "#,
             email
         )
-        .fetch_optional(self.pool)
+        .fetch_optional(&*self.pool)
         .await?;
         Ok(user)
     }
@@ -72,7 +76,7 @@ impl<'a> UserRepository<'a> {
             limit,
             offset
         )
-        .fetch_all(self.pool)
+        .fetch_all(&*self.pool)
         .await?;
         Ok(users)
     }
@@ -90,7 +94,7 @@ impl<'a> UserRepository<'a> {
             Utc::now(),
             id
         )
-        .fetch_one(self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(user)
     }
@@ -108,7 +112,7 @@ impl<'a> UserRepository<'a> {
             Utc::now(),
             id
         )
-        .fetch_one(self.pool)
+        .fetch_one(&*self.pool)
         .await?;
         Ok(user)
     }
@@ -121,7 +125,7 @@ impl<'a> UserRepository<'a> {
             "#,
             id
         )
-        .execute(self.pool)
+        .execute(&*self.pool)
         .await?;
         Ok(())
     }
