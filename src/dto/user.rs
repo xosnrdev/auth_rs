@@ -4,9 +4,8 @@ use validator::Validate;
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateEmailDto {
     #[validate(email, custom(function = "crate::utils::Validation::email"))]
-    #[serde(rename = "lowercase")]
+    #[serde(deserialize_with = "super::deserialize_email")]
     pub new_email: String,
-    pub access_token: String,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -16,5 +15,4 @@ pub struct UpdatePasswordDto {
         custom(function = "crate::utils::Validation::password")
     )]
     pub new_password: String,
-    pub access_token: String,
 }
