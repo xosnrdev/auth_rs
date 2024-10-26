@@ -45,33 +45,43 @@ impl AuthService {
     }
 
     async fn generate_tokens(&self, user_id: Uuid, email: &str) -> Result<TokenDetails> {
-        let mut refresh_token = self.jwt_service.generate_refresh_token(user_id, &email)?;
+        let stored_token = self.refresh_token_service.get_by_user_id(user_id).await?;
 
-        let token_details = self.refresh_token(&refresh_token).await?;
-
-        let access_token = token_details.get_token();
-
-        let expires_in = self.jwt_service.get_expires_in(access_token)?;
-
-        let x_refresh_token = self.refresh_token_service.get_by_user_id(user_id).await?;
-
-        let stored_refresh_token = match x_refresh_token {
-            Some(r_token) => r_token,
+        let refresh_token = match stored_token {
+            Some(stored) => {
+                if !stored.is_expired() && !stored.is_revoked() {
+                    stored.token
+                } else {
+                    self.refresh_token_service.delete(user_id).await?;
+                    let new_token = self.jwt_service.generate_refresh_token(user_id, email)?;
+                    self.store_token(user_id, &new_token).await?;
+                    new_token
+                }
+            }
             None => {
-                self.store_token(user_id, &refresh_token).await?;
-                return Ok(token_details);
+                let new_token = self.jwt_service.generate_refresh_token(user_id, email)?;
+                self.store_token(user_id, &new_token).await?;
+                new_token
             }
         };
 
-        if stored_refresh_token.is_expired() || stored_refresh_token.is_revoked() {
-            self.refresh_token_service.delete(user_id).await?;
+        let token_details = match self.refresh_token(&refresh_token).await.ok() {
+            Some(details) => details,
+            None => {
+                // Refresh failed, generate new access token
+                let access_token = self.jwt_service.generate_access_token(user_id, email)?;
+                let expires_in = self.jwt_service.get_expires_in(&access_token)?;
+                TokenDetails::new(access_token, expires_in, &refresh_token)
+            }
+        };
 
-            self.store_token(user_id, &refresh_token).await?;
-        } else {
-            refresh_token = stored_refresh_token.token;
-        }
+        let expires_in = self.jwt_service.get_expires_in(token_details.get_token())?;
 
-        Ok(TokenDetails::new(access_token, expires_in, refresh_token))
+        Ok(TokenDetails::new(
+            token_details.get_token().to_string(),
+            expires_in,
+            &refresh_token,
+        ))
     }
 
     pub async fn register(&self, dto: RegisterDto) -> Result<AuthResponse> {
@@ -91,13 +101,10 @@ impl AuthService {
 
         let token_details = self.generate_tokens(user.id, &user.email).await?;
 
-        Ok(AuthResponse::success(
-            token_details,
-            "Registration successful",
-        ))
+        Ok(AuthResponse::success(token_details))
     }
 
-    pub async fn authenticate(&self, dto: AuthenticateDto) -> Result<AuthResponse> {
+    pub async fn login(&self, dto: AuthenticateDto) -> Result<AuthResponse> {
         dto.validate()?;
 
         let x_user = self.user_service.get_by_email(&dto.email).await?;
@@ -113,10 +120,7 @@ impl AuthService {
 
         let token_details = self.generate_tokens(user.id, &user.email).await?;
 
-        Ok(AuthResponse::success(
-            token_details,
-            "Authentication successful",
-        ))
+        Ok(AuthResponse::success(token_details))
     }
 
     /// Refreshes an access token
@@ -137,7 +141,7 @@ impl AuthService {
 
                 let expires_in = self.jwt_service.get_expires_in(&access_token)?;
 
-                let token_details = TokenDetails::new(&access_token, expires_in, None);
+                let token_details = TokenDetails::new(&access_token, expires_in, "");
 
                 Ok(token_details)
             }
@@ -222,10 +226,14 @@ impl AuthService {
         todo!()
     }
 
-    pub async fn update_email(&self, dto: UpdateEmailDto) -> Result<AuthResponse> {
+    pub async fn update_email(
+        &self,
+        dto: UpdateEmailDto,
+        access_token: &str,
+    ) -> Result<AuthResponse> {
         dto.validate()?;
 
-        let x_token = self.jwt_service.validate_access_token(&dto.access_token)?;
+        let x_token = self.jwt_service.validate_access_token(access_token)?;
 
         let user_id = x_token.claims.get_user_id();
 
@@ -251,10 +259,14 @@ impl AuthService {
         }
     }
 
-    pub async fn update_password(&self, dto: UpdatePasswordDto) -> Result<AuthResponse> {
+    pub async fn update_password(
+        &self,
+        dto: UpdatePasswordDto,
+        access_token: &str,
+    ) -> Result<AuthResponse> {
         dto.validate()?;
 
-        let x_token = self.jwt_service.validate_access_token(&dto.access_token)?;
+        let x_token = self.jwt_service.validate_access_token(access_token)?;
 
         let user_id = x_token.claims.get_user_id();
 
