@@ -1,12 +1,14 @@
-use actix_web::{
-    http::header::{HeaderValue, ToStrError},
-    HttpRequest,
+use std::{
+    future::{ready, Future},
+    pin::Pin,
 };
-use thiserror::Error;
+
+use actix_web::{dev::Payload, http::header::ToStrError, Error, FromRequest, HttpRequest};
+use serde::Deserialize;
 
 /// Errors that can occur during JWT token extraction
-#[derive(Debug, Error)]
-pub enum TokenExtractionError {
+#[derive(Debug, thiserror::Error)]
+pub enum TokenExtractError {
     #[error("Authorization header not found")]
     MissingAuthorizationHeader,
 
@@ -21,60 +23,73 @@ pub enum TokenExtractionError {
 }
 
 /// Constants for JWT token extraction
-pub mod constants {
+mod constants {
     /// The expected prefix for the Authorization header value
     pub const BEARER_PREFIX: &str = "Bearer ";
     /// The name of the Authorization header
-    pub const AUTHORIZATION_HEADER: &str = "Authorization";
+    pub const AUTHORIZATION_HEADER: &'static str = "Authorization";
 }
 
-/// Extracts a JWT token from the Authorization header of an HTTP request.
-///
-/// # Arguments
-///
-/// * `req` - The HTTP request to extract the token from
-///
-/// # Returns
-///
-/// * `Ok(&str)` - The extracted JWT token
-/// * `Err(TokenExtractionError)` - If the token cannot be extracted
-///
-/// # Example
-///
-/// ```rust
-/// use actix_web::HttpRequest;
-///
-/// fn handle_request(req: HttpRequest) {
-///     match extract_jwt_token(&req) {
-///         Ok(token) => println!("Token: {}", token),
-///         Err(e) => eprintln!("Error: {}", e),
-///     }
-/// }
-/// ```
-pub fn extract_jwt_token(req: &HttpRequest) -> Result<&str, TokenExtractionError> {
-    // Get the Authorization header
-    let auth_header: &HeaderValue = req
-        .headers()
-        .get(constants::AUTHORIZATION_HEADER)
-        .ok_or(TokenExtractionError::MissingAuthorizationHeader)?;
+/// Type to hold the extracted JWT token
+#[derive(Debug, Deserialize)]
+pub struct TokenExtract(pub String);
 
-    // Convert header to string
-    let auth_str = auth_header.to_str()?;
-
-    // Validate header format
-    if !auth_str.starts_with(constants::BEARER_PREFIX) {
-        return Err(TokenExtractionError::InvalidHeaderFormat);
+impl TokenExtract {
+    /// Get the token string
+    pub fn get_token(&self) -> &str {
+        &self.0
     }
 
-    // Extract token
-    let token = &auth_str[constants::BEARER_PREFIX.len()..];
+    /// Extracts a JWT token from the Authorization header of an HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `req` - The HTTP request to extract the token from
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(&str)` - The extracted JWT token
+    /// * `Err(TokenExtractError)` - If the token cannot be extracted
+    fn extract(req: &HttpRequest) -> Result<&str, TokenExtractError> {
+        // Get the Authorization header
+        let auth_header = req
+            .headers()
+            .get(constants::AUTHORIZATION_HEADER)
+            .ok_or(TokenExtractError::MissingAuthorizationHeader)?;
 
-    // Validate token is not empty
-    if token.trim().is_empty() {
-        return Err(TokenExtractionError::InvalidHeaderContent);
+        // Convert header to string
+        let auth_str = auth_header.to_str()?;
+
+        // Validate header format
+        if !auth_str.starts_with("Bearer ") {
+            return Err(TokenExtractError::InvalidHeaderFormat);
+        }
+
+        // Extract token
+        let token = &auth_str[constants::BEARER_PREFIX.len()..];
+
+        // Validate token is not empty
+        if token.trim().is_empty() {
+            return Err(TokenExtractError::InvalidHeaderContent);
+        }
+
+        Ok(token.trim())
     }
+}
 
-    Ok(token.trim())
+impl FromRequest for TokenExtract {
+    type Error = Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        // Wrap the result in a future
+        let fut = match TokenExtract::extract(req) {
+            Ok(token) => ready(Ok(TokenExtract(token.to_string()))),
+            Err(e) => ready(Err(actix_web::error::ErrorUnauthorized(e))),
+        };
+
+        Box::pin(fut)
+    }
 }
 
 #[cfg(test)]
@@ -86,8 +101,8 @@ mod tests {
     fn test_missing_authorization_header() {
         let req = TestRequest::default().to_http_request();
         assert!(matches!(
-            extract_jwt_token(&req),
-            Err(TokenExtractionError::MissingAuthorizationHeader)
+            TokenExtract::extract(&req),
+            Err(TokenExtractError::MissingAuthorizationHeader)
         ));
     }
 
@@ -97,8 +112,8 @@ mod tests {
             .insert_header(("Authorization", "Invalid"))
             .to_http_request();
         assert!(matches!(
-            extract_jwt_token(&req),
-            Err(TokenExtractionError::InvalidHeaderFormat)
+            TokenExtract::extract(&req),
+            Err(TokenExtractError::InvalidHeaderFormat)
         ));
     }
 
@@ -108,8 +123,8 @@ mod tests {
             .insert_header(("Authorization", "Bearer "))
             .to_http_request();
         assert!(matches!(
-            extract_jwt_token(&req),
-            Err(TokenExtractionError::InvalidHeaderContent)
+            TokenExtract::extract(&req),
+            Err(TokenExtractError::InvalidHeaderContent)
         ));
     }
 
@@ -119,7 +134,7 @@ mod tests {
         let req = TestRequest::default()
             .insert_header(("Authorization", format!("Bearer {}", token)))
             .to_http_request();
-        assert_eq!(extract_jwt_token(&req).unwrap(), token);
+        assert_eq!(TokenExtract::extract(&req).unwrap(), token);
     }
 
     #[test]
@@ -128,6 +143,6 @@ mod tests {
         let req = TestRequest::default()
             .insert_header(("Authorization", format!("Bearer  {}  ", token)))
             .to_http_request();
-        assert_eq!(extract_jwt_token(&req).unwrap(), token);
+        assert_eq!(TokenExtract::extract(&req).unwrap(), token);
     }
 }
