@@ -175,16 +175,13 @@ impl AuthService {
         }
     }
 
-    pub async fn logout(&self, refresh_token: &str) -> Result<AuthResponse> {
-        let x_token = self.validate_token(refresh_token).await?;
+    pub async fn logout(&self, access_token: &str) -> Result<AuthResponse> {
+        let x_token = self.jwt_service.validate_access_token(access_token)?;
 
-        match x_token {
-            TokenValidity::Invalid => return Err(AuthServiceError::InvalidToken),
-            TokenValidity::Valid(r_token) => {
-                self.refresh_token_service.delete(r_token.user_id).await?;
-                Ok(AuthResponse::new(AuthStatus::Success, "Logout successful"))
-            }
-        }
+        let user_id = x_token.claims.get_user_id();
+
+        self.refresh_token_service.delete(user_id).await?;
+        Ok(AuthResponse::new(AuthStatus::Success, "Logout successful"))
     }
 
     pub async fn delete_me(&self, access_token: &str) -> Result<AuthResponse> {
@@ -202,21 +199,18 @@ impl AuthService {
         ))
     }
 
-    pub async fn get_me(&self, refresh_token: &str) -> Result<User> {
-        let x_token = self.validate_token(refresh_token).await?;
+    pub async fn get_me(&self, access_token: &str) -> Result<User> {
+        let x_token = self.jwt_service.validate_access_token(access_token)?;
 
-        match x_token {
-            TokenValidity::Invalid => return Err(AuthServiceError::InvalidToken),
-            TokenValidity::Valid(r_token) => {
-                let user = self.user_service.get_by_id(r_token.user_id).await?;
+        let user_id = x_token.claims.get_user_id();
 
-                match user {
-                    Some(user) => Ok(user),
-                    None => Err(AuthServiceError::UserServiceError(
-                        UserServiceError::UserNotFound,
-                    )),
-                }
-            }
+        let user = self.user_service.get_by_id(user_id).await?;
+
+        match user {
+            Some(user) => Ok(user),
+            None => Err(AuthServiceError::UserServiceError(
+                UserServiceError::UserNotFound,
+            )),
         }
     }
 
