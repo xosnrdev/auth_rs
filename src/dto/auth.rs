@@ -34,8 +34,8 @@ pub struct TokenDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     scope: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_token: Option<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    refresh_token: String,
 }
 
 impl TokenDetails {
@@ -49,7 +49,7 @@ impl TokenDetails {
             token: token.into(),
             expires_in,
             scope: None,
-            refresh_token: Some(refresh_token.into()),
+            refresh_token: refresh_token.into(),
         }
     }
 
@@ -82,7 +82,6 @@ impl AuthResponse {
     pub fn success(token_details: TokenDetails) -> Self {
         Self {
             status: AuthStatus::Success,
-            // should be rfc ieft standardized message for unhinged request response
             message: "Request completed successfully",
             token_details: Some(token_details),
             error_details: None,
@@ -93,7 +92,6 @@ impl AuthResponse {
     pub fn error(error_details: ErrorDetails) -> Self {
         Self {
             status: AuthStatus::Error,
-            // should be rfc ieft standardized message for unhinged request response
             message: "Request could not be completed",
             token_details: None,
             error_details: Some(error_details),
