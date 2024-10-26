@@ -28,14 +28,11 @@ pub async fn refresh_token(
     }
 }
 
-pub async fn logout(
-    app_state: web::Data<AppState>,
-    dto: web::Json<RefreshTokenDto>,
-) -> HttpResponse {
+pub async fn logout(app_state: web::Data<AppState>, token: TokenExtract) -> HttpResponse {
     let response = app_state
         .get_services()
         .get_auth_service()
-        .logout(&dto.token)
+        .logout(&token.get_token())
         .await;
 
     match response {
@@ -63,14 +60,11 @@ pub async fn delete_me(token: TokenExtract, app_state: web::Data<AppState>) -> H
     }
 }
 
-pub async fn get_me(
-    app_state: web::Data<AppState>,
-    dto: web::Json<RefreshTokenDto>,
-) -> HttpResponse {
+pub async fn get_me(app_state: web::Data<AppState>, token: TokenExtract) -> HttpResponse {
     let response = app_state
         .get_services()
         .get_auth_service()
-        .get_me(&dto.token)
+        .get_me(&token.get_token())
         .await;
 
     match response {
