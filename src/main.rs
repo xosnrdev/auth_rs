@@ -1,7 +1,7 @@
 use std::net::TcpListener;
 
 use actix_web::{web, App, HttpServer};
-use authnorization::{configuration::AppState, controllers::config};
+use auth_rs::{configuration::AppState, controllers::config};
 use dotenv::dotenv;
 use env_logger::Env;
 

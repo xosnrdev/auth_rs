@@ -1,8 +1,8 @@
-# auth-rs
+# auth_rs
 
 ## Overview
 
-`auth-rs` is an authentication service built using Actix Web and SQLx with PostgreSQL. It offers foundational authentication functions that adhere to RFC 6749 (OAuth 2.0) and RFC 6750 (Bearer Token) standards.
+`auth_rs` is an authentication service built using Actix Web and SQLx with PostgreSQL. It offers foundational authentication functions that adhere to RFC 6749 (OAuth 2.0) and RFC 6750 (Bearer Token) standards.
 
 ---
 
@@ -26,8 +26,8 @@
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/xosnrdev/auth-rs
-   cd auth-rs
+   git clone https://github.com/xosnrdev/auth_rs
+   cd auth_rs
    ```
 
 2. Start PostgreSQL with Docker:

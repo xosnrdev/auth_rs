@@ -329,7 +329,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "authnorization"
+name = "auth_rs"
 version = "0.1.0"
 dependencies = [
  "actix-web",

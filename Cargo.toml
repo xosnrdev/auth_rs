@@ -1,9 +1,9 @@
 [package]
-name = "authnorization"
+name = "auth_rs"
 version = "0.1.0"
 edition = "2021"
 authors = ["Success Kingsley <hello@xosnrdev.tech>"]
-description = "Basic authentication no authorization with rustful actix web"
+description = "Auth service PoC in Rust"
 license = "MIT"
 
 [lib]
@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "authnorization"
+name = "auth_rs"
 
 [dependencies]
 chrono = { version = "0.4.38", features = ["clock", "serde"] }
