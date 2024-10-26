@@ -211,7 +211,7 @@ Refreshes an access token using a refresh token.
   ```bash
   curl -X POST http://localhost:50051/api/v1/auth/token/refresh \
     -H "Content-Type: application/json" \
-    -d '{"refreshToken": "<REFRESH_TOKEN>"}'
+    -d '{"token": "<REFRESH_TOKEN>"}'
   ```
 
 ## Security Notes
