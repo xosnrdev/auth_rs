@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthResponse {
     // Required fields
     status: AuthStatus,
@@ -24,6 +25,7 @@ pub enum AuthStatus {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenDetails {
     token_type: &'static str,
     token: String,
@@ -40,14 +42,14 @@ impl TokenDetails {
     pub fn new(
         token: impl Into<String>,
         expires_in: i64,
-        refresh_token: impl Into<Option<String>>,
+        refresh_token: impl Into<String>,
     ) -> Self {
         Self {
             token_type: "Bearer",
             token: token.into(),
             expires_in,
             scope: None,
-            refresh_token: refresh_token.into(),
+            refresh_token: Some(refresh_token.into()),
         }
     }
 
@@ -57,6 +59,7 @@ impl TokenDetails {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     pub error: &'static str,
 
@@ -76,10 +79,11 @@ impl AuthResponse {
     }
 
     /// Creates a new successful authentication response
-    pub fn success(token_details: TokenDetails, message: &'static str) -> Self {
+    pub fn success(token_details: TokenDetails) -> Self {
         Self {
             status: AuthStatus::Success,
-            message,
+            // should be rfc ieft standardized message for unhinged request response
+            message: "Request completed successfully",
             token_details: Some(token_details),
             error_details: None,
         }
@@ -89,7 +93,8 @@ impl AuthResponse {
     pub fn error(error_details: ErrorDetails) -> Self {
         Self {
             status: AuthStatus::Error,
-            message: "Authentication failed",
+            // should be rfc ieft standardized message for unhinged request response
+            message: "Request could not be completed",
             token_details: None,
             error_details: Some(error_details),
         }
@@ -104,7 +109,7 @@ impl AuthResponse {
 #[derive(Debug, Deserialize, Validate)]
 pub struct RegisterDto {
     #[validate(email, custom(function = "crate::utils::Validation::email"))]
-    #[serde(rename = "lowercase")]
+    #[serde(deserialize_with = "super::deserialize_email")]
     pub email: String,
 
     #[validate(
@@ -117,7 +122,7 @@ pub struct RegisterDto {
 #[derive(Debug, Deserialize, Validate)]
 pub struct AuthenticateDto {
     #[validate(email)]
-    #[serde(rename = "lowercase")]
+    #[serde(deserialize_with = "super::deserialize_email")]
     pub email: String,
 
     pub password: String,
