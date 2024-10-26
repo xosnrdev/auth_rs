@@ -1,155 +1,228 @@
-# Authnorization
+# auth-rs
 
 ## Overview
 
-This is a simple Authentication service built with the Actix Web framework with SQLx Postgres. The service handles user
-authentication, including registration and login functionalities. Although it currently does not include access and
-refresh token mechanisms, it establishes a robust foundation for future extensions like JWT-based token authentication.
-
-## Purpose
-
-The service is designed to offer basic authentication features:
-
-- **User Registration**: Safely stores user information with hashed passwords.
-- **User Login**: Verifies user credentials and prepares the system for future token-based authentication.
-
-It adheres to industry-standard security practices by utilizing password hashing (via Argon2) and SQLx for interacting
-with a PostgreSQL database. This service is foundational to a broader authentication system that will later include more
-advanced features like JWT-based access and refresh tokens.
+`auth-rs` is an authentication service built using Actix Web and SQLx with PostgreSQL. It offers foundational authentication functions that adhere to RFC 6749 (OAuth 2.0) and RFC 6750 (Bearer Token) standards.
 
 ---
 
 ## Features
 
-1. **User Registration**
-
-    - Users can register by providing an email and a password which is validated upon request.
-    - The password is hashed using Argon2 before storage, ensuring security even if the database is compromised.
-
-2. **User Login**
-
-    - Users can log in using their email and password.
-    - Passwords are verified against the hashed values stored in the database.
-    - The service currently authenticates users by matching credentials without issuing tokens (this will be extended).
-
-3. **Modular Structure**
-    - Built with flexibility and scalability in mind, the architecture supports future expansions like token
-      generation (JWT) for user sessions, access control, and more.
-
----
+- **User Registration**: Registers users with hashed passwords.
+- **User Login**: Authenticates users with email and password.
+- **Token-based Auth**: Implements OAuth 2.0 flow with access and refresh tokens.
+- **Secure Updates**: Protected endpoints for email and password changes.
 
 ## Installation
 
 ### Prerequisites
 
-- Rust (stable version)
-- Docker (for running PostgreSQL and development environment)
-- `sqlx` CLI for migrations
+- Rust (latest stable)
+- Docker (for PostgreSQL)
+- `sqlx` CLI (for migrations)
 
-### Steps
+### Setup Steps
 
-1. **Clone the repository**
+1. Clone the repository:
 
    ```bash
-   git clone https://github.com/xosnrdev/authnorization
-   cd authnorization
+   git clone https://github.com/xosnrdev/auth-rs
+   cd auth-rs
    ```
 
-2. **Setup the database**
-   Run the PostgreSQL database using Docker Compose:
+2. Start PostgreSQL with Docker:
 
    ```bash
    docker-compose up -d
    ```
 
-3. **Run database migrations**
-
-   Use `sqlx` to set up the database schema:
+3. Run database migrations:
 
    ```bash
    sqlx migrate run --source ./src/db/migrations
    ```
 
-4. **Create and setup `.env` file in the root directory from the provided `.env.example` file.**
+4. Create and configure `.env` file based on `.env.example`.
 
-5. **Run the application**
-
-   Start the Actix Web server:
+5. Start the application:
 
    ```bash
    cargo run
    ```
 
-   The server will be running on `localhost:8080`.
+   Server runs on `localhost:<port>` default `50051`.
 
 ---
 
-## Endpoints
+## API Response Format
 
-### **POST /auth/register**
+All endpoints return responses in this format:
 
-- **Description**: Register a new user.
-- **Payload**:
+```json
+{
+  "status": "success" | "error",
+  "message": "Human readable message",
+  "tokenDetails": {
+    "tokenType": "Bearer",
+    "token": "string",
+    "expiresIn": "number",
+    "scope": "string",
+    "refreshToken": "string"
+  },
+  "errorDetails": {
+    "error": "error_code",
+    "errorDescription": "Detailed error message",
+    "errorUri": "https://auth.example.com/docs/errors"
+  }
+}
+```
+
+- `tokenDetails` appears only in successful authentication responses.
+- `errorDetails` appears only in error responses.
+- `scope` is optional in `tokenDetails`.
+- `refreshToken` is omitted if empty.
+
+---
+
+## API Endpoints
+
+### Public Endpoints (No Authentication Required)
+
+#### **POST /api/v1/auth/register**
+
+Registers a new user.
+
+- **Request**:
+
+  ```bash
+  curl -X POST http://localhost:50051/api/v1/auth/register \
+    -H "Content-Type: application/json" \
+    -d '{"email": "user@example.com", "password": "$Password123"}'
+  ```
+
+- **Response**: Refer to the [API Response Format](#api-response-format) for response structure.
+
+#### **POST /api/v1/auth/login**
+
+Authenticates a user.
+
+- **Request**:
+
+  ```bash
+  curl -X POST http://localhost:50051/api/v1/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email": "user@example.com", "password": "$Password123"}'
+  ```
+
+- **Response**: Refer to the [API Response Format](#api-response-format) for response structure.
+
+#### **GET /api/v1/auth/healthz**
+
+Checks service status.
+
+- **Request**:
+
+  ```bash
+  curl http://localhost:50051/api/v1/auth/healthz
+  ```
+
+- **Success Response** (`200 OK`):
+
   ```json
   {
-    "email": "user@example.com",
-    "password": "P@ssw0rd!123"
+    "status": "success",
+    "message": "Service is operational"
   }
   ```
-- **Response**:
-    - `201 Created` on successful registration.
-    - `400 Bad Request` if email is already in use or validation fails.
 
-### **POST /auth/login**
+### Protected Endpoints (Access Token Required)
 
-- **Description**: Log in an existing user.
-- **Payload**:
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "P@ssw0rd!123"
-  }
+#### **PUT /api/v1/auth/password**
+
+Updates the user’s password using the current access token.
+
+- **Request**:
+
+  ```bash
+  curl -X PUT http://localhost:50051/api/v1/auth/password \
+    -H "Authorization: Bearer <ACCESS_TOKEN>" \
+    -H "Content-Type: application/json" \
+    -d '{"newPassword": "new123"}'
   ```
-- **Response**:
-    - `200 OK` on successful login.
-    - `401 Unauthorized` for incorrect credentials.
 
----
+- **Response**: Refer to the [API Response Format](#api-response-format) for response structure.
 
-## Future Work
+#### **PUT /api/v1/auth/email**
 
-This MVP is designed as a foundation for future expansions, which include:
+Updates the user’s email.
 
-- **JWT-based Authentication**: Integrating access tokens for stateless authentication.
-- **Refresh Tokens**: Adding support for session renewal using long-lived refresh tokens.
-- **Account Management**: Adding user profile updates, password resets, and email verification.
-- **Tests**: Writing more unit and integration tests to ensure the service's reliability.
-- **Logging**: Implementing structured logging for better monitoring and debugging.
-- **Error Handling**: Improving error responses and handling for better user experience.
-- **Security Enhancements**: Adding more security features like rate limiting, fault tolerance and resilence, CORS, and
-  HTTPS.
-- **Tracing and Metrics**: Integrating tracing and metrics for performance monitoring.
-- **Validation**: Enhancing input validation and error handling for better user experience.
-- **Documentation**: Writing more detailed documentation for the service and its features.
+- **Request**:
 
-It is quite a handful, but these features will make the service more robust and production-ready.
+  ```bash
+  curl -X PUT http://localhost:50051/api/v1/auth/email \
+    -H "Authorization: Bearer <ACCESS_TOKEN>" \
+    -H "Content-Type: application/json" \
+    -d '{"newEmail": "newemail@example.com"}'
+  ```
 
----
+- **Response**: Refer to the [API Response Format](#api-response-format) for response structure.
 
-## Contributing
+#### **POST /api/v1/auth/logout**
 
-Contributions are welcome to improve the service and add more advanced features. To contribute:
+Logs out the user.
 
-1. Fork the repository.
-2. Create a feature branch.
-3. Submit a pull request with a clear explanation of the improvements or fixes.
+- **Request**:
 
----
+  ```bash
+  curl -X POST http://localhost:50051/api/v1/auth/logout \
+    -H "Authorization: Bearer <ACCESS_TOKEN>"
+  ```
+
+#### **GET /api/v1/users/me**
+
+Retrieves user details.
+
+- **Request**:
+
+  ```bash
+  curl http://localhost:50051/api/v1/users/me \
+    -H "Authorization: Bearer <ACCESS_TOKEN>"
+  ```
+
+#### **DELETE /api/v1/users/me**
+
+Deletes the user account.
+
+- **Request**:
+
+  ```bash
+  curl -X DELETE http://localhost:50051/api/v1/users/me \
+    -H "Authorization: Bearer <ACCESS_TOKEN>"
+  ```
+
+### Token Refresh Endpoint
+
+#### **POST /api/v1/auth/token/refresh**
+
+Refreshes an access token using a refresh token.
+
+- **Request**:
+
+  ```bash
+  curl -X POST http://localhost:50051/api/v1/auth/token/refresh \
+    -H "Content-Type: application/json" \
+    -d '{"refreshToken": "<REFRESH_TOKEN>"}'
+  ```
+
+## Security Notes
+
+- **Access tokens**: Short-lived (15 minutes)
+- **Refresh tokens**: Long-lived (7 days)
+- **HTTPS**: Required for all requests in production
+- **Password hashing**: Uses Argon2id for strong security
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
-
-For any questions or issues, feel free to open an issue on the repository.
