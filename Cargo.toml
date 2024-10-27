@@ -5,6 +5,8 @@ edition = "2021"
 authors = ["Success Kingsley <hello@xosnrdev.tech>"]
 description = "Auth service PoC in Rust"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/xosnrdev/auth_rs"
 
 [lib]
 path = "src/lib.rs"
