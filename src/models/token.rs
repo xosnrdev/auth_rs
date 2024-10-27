@@ -6,7 +6,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, FromRow)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct RefreshToken {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -15,7 +15,7 @@ pub struct RefreshToken {
     pub expires_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub revoked: bool,
+    pub is_revoked: bool,
 }
 
 impl RefreshToken {
@@ -27,7 +27,7 @@ impl RefreshToken {
             expires_at,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            revoked: false,
+            is_revoked: false,
         }
     }
 
@@ -36,7 +36,7 @@ impl RefreshToken {
     }
 
     pub const fn is_revoked(&self) -> bool {
-        self.revoked
+        self.is_revoked
     }
 
     pub const fn get_user_id(&self) -> Uuid {
@@ -48,8 +48,8 @@ impl fmt::Display for RefreshToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "RefreshToken {{ id: {}, user_id: {}, expires_at: {}, created_at: {}, revoked: {} }}",
-            self.id, self.user_id, self.expires_at, self.created_at, self.revoked
+            "RefreshToken {{ id: {}, user_id: {}, expires_at: {}, created_at: {}, is_revoked: {} }}",
+            self.id, self.user_id, self.expires_at, self.created_at, self.is_revoked
         )
     }
 }

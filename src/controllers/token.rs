@@ -16,7 +16,7 @@ pub async fn refresh_token(
     let response = app_state
         .get_services()
         .get_auth_service()
-        .refresh_token(&dto.token)
+        .refresh_token(&dto.refresh_token)
         .await;
 
     match response {
