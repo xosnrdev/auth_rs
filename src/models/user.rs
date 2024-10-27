@@ -6,7 +6,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, FromRow)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
     pub email: String,

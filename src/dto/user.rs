@@ -2,6 +2,7 @@ use serde::Deserialize;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateEmailDto {
     #[validate(email, custom(function = "crate::utils::Validation::email"))]
     #[serde(deserialize_with = "super::deserialize_email")]
@@ -9,6 +10,7 @@ pub struct UpdateEmailDto {
 }
 
 #[derive(Debug, Deserialize, Validate)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdatePasswordDto {
     #[validate(
         length(min = 8, max = 128),
