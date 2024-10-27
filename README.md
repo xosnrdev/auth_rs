@@ -147,7 +147,7 @@ Updates the user’s password using the current access token.
   curl -X PUT http://localhost:50051/api/v1/auth/password \
     -H "Authorization: Bearer <ACCESS_TOKEN>" \
     -H "Content-Type: application/json" \
-    -d '{"newPassword": "new123"}'
+    -d '{"newPassword": "$NewPassword123"}'
   ```
 
 - **Response**: Refer to the [API Response Format](#api-response-format) for response structure.
@@ -211,7 +211,7 @@ Refreshes an access token using a refresh token.
   ```bash
   curl -X POST http://localhost:50051/api/v1/auth/token/refresh \
     -H "Content-Type: application/json" \
-    -d '{"token": "<REFRESH_TOKEN>"}'
+    -d '{"refreshToken": "<REFRESH_TOKEN>"}'
   ```
 
 ## Security Notes
