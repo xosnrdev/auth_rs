@@ -14,7 +14,10 @@ path = "src/main.rs"
 name = "auth_rs"
 
 [dependencies]
-chrono = { version = "0.4.38", features = ["clock", "serde"] }
+chrono = { version = "0.4.38", default-features = false, features = [
+  "clock",
+  "serde",
+] }
 serde = { version = "1.0.210", features = ["derive"] }
 sqlx = { version = "0.8.2", default-features = false, features = [
   "runtime-tokio-rustls",
