@@ -21,7 +21,7 @@ impl RefreshTokenRepository {
         let token = sqlx::query_as!(
             RefreshToken,
             r#"
-            INSERT INTO refresh_tokens (id, user_id, token, expires_at, revoked, created_at, updated_at)
+            INSERT INTO refresh_tokens (id, user_id, token, expires_at, is_revoked, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
@@ -29,7 +29,7 @@ impl RefreshTokenRepository {
             token.user_id,
             token.token,
             token.expires_at,
-            token.revoked,
+            token.is_revoked,
             token.created_at,
             token.updated_at
         )
@@ -73,7 +73,7 @@ impl RefreshTokenRepository {
             RefreshToken,
             r#"
             UPDATE refresh_tokens
-            SET revoked = true, updated_at = $1
+            SET is_revoked = true, updated_at = $1
             WHERE user_id = $2
             RETURNING *
             "#,
