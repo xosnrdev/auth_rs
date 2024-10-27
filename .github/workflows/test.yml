@@ -3,7 +3,7 @@ name: Main Test
 on:
   push:
     branches:
-      - main
+      - master
 
   workflow_dispatch:
 
