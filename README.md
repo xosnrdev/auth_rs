@@ -39,7 +39,7 @@
 3. Run database migrations:
 
    ```bash
-   sqlx migrate run --source ./src/db/migrations
+   sqlx migrate run
    ```
 
 4. Create and configure `.env` file based on `.env.example`.
