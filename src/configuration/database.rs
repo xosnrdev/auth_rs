@@ -1,8 +1,6 @@
-use std::process;
+use std::{process, str::FromStr};
 
-use crate::configuration::ConfigError;
-
-use super::{read_env_var, ConfigBuilder};
+use super::{read_env_var, ConfigBuilder, ConfigError};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 /// Represents the configuration for a database connection
@@ -13,7 +11,7 @@ pub struct DatabaseConfig {
     port: u16,
     host: String,
     name: String,
-    ssl_mode: SSLMode,
+    ssl_mode: PgSslMode,
 }
 
 impl Default for DatabaseConfig {
@@ -24,7 +22,7 @@ impl Default for DatabaseConfig {
             port: 5432,
             host: String::from("127.0.0.1"),
             name: String::new(),
-            ssl_mode: SSLMode::default(),
+            ssl_mode: PgSslMode::default(),
         }
     }
 }
@@ -50,7 +48,7 @@ impl DatabaseConfig {
         &self.name
     }
 
-    pub const fn get_ssl_mode(&self) -> &SSLMode {
+    pub const fn get_ssl_mode(&self) -> &PgSslMode {
         &self.ssl_mode
     }
 
@@ -62,50 +60,23 @@ impl DatabaseConfig {
             .port(self.port)
             .host(&self.host)
             .database(&self.name)
-            .ssl_mode(self.ssl_mode.to_pg_ssl_mode())
+            .ssl_mode(self.ssl_mode)
     }
 }
 
-/// Represents the SSL mode for the database connection
-#[derive(Debug, Clone, PartialEq, Default)]
-pub enum SSLMode {
-    Require,
-    #[default]
-    Prefer,
-    Disable,
+pub trait PgSslModeExt {
+    fn as_str(&self) -> &'static str;
 }
 
-impl TryFrom<String> for SSLMode {
-    type Error = String;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        match s.to_lowercase().as_str() {
-            "require" => Ok(Self::Require),
-            "prefer" => Ok(Self::Prefer),
-            "disable" => Ok(Self::Disable),
-            other => Err(format!(
-                "{} is not a supported ssl mode. Use either `require`, `prefer`, or `disable`",
-                other
-            )),
-        }
-    }
-}
-
-impl SSLMode {
-    /// Converts SSLMode to PgSslMode
-    const fn to_pg_ssl_mode(&self) -> PgSslMode {
-        match *self {
-            SSLMode::Require => PgSslMode::Require,
-            SSLMode::Prefer => PgSslMode::Prefer,
-            SSLMode::Disable => PgSslMode::Disable,
-        }
-    }
-
-    const fn as_str(&self) -> &'static str {
-        match *self {
-            SSLMode::Require => "require",
-            SSLMode::Prefer => "prefer",
-            SSLMode::Disable => "disable",
+impl PgSslModeExt for PgSslMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            PgSslMode::Disable => "disable",
+            PgSslMode::Allow => "allow",
+            PgSslMode::Prefer => "prefer",
+            PgSslMode::Require => "require",
+            PgSslMode::VerifyCa => "verify-ca",
+            PgSslMode::VerifyFull => "verify-full",
         }
     }
 }
@@ -118,7 +89,7 @@ pub struct DatabaseConfigBuilder {
     port: Option<u16>,
     host: Option<String>,
     name: Option<String>,
-    ssl_mode: Option<SSLMode>,
+    ssl_mode: Option<PgSslMode>,
 }
 
 impl DatabaseConfigBuilder {
@@ -158,7 +129,7 @@ impl DatabaseConfigBuilder {
         self
     }
 
-    pub const fn with_ssl_mode(mut self, ssl_mode: SSLMode) -> Self {
+    pub const fn with_ssl_mode(mut self, ssl_mode: PgSslMode) -> Self {
         self.ssl_mode = Some(ssl_mode);
         self
     }
@@ -233,7 +204,7 @@ impl ConfigBuilder for DatabaseConfigBuilder {
             self.ssl_mode
                 .clone()
                 .unwrap_or_else(|| match read_env_var("DATABASE_SSL_MODE") {
-                    Ok(s) => SSLMode::try_from(s).unwrap_or_else(|e| {
+                    Ok(s) => PgSslMode::from_str(&s).unwrap_or_else(|e| {
                         log::warn!(
                             "{}. Using default {}",
                             e,
