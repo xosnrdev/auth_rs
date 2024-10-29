@@ -14,6 +14,4 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/auth_rs /usr/local/bin
 
-EXPOSE $SERVER_PORT
-
 ENTRYPOINT [ "auth_rs" ]
