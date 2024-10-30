@@ -2,6 +2,7 @@ use std::{
     env::{var, VarError},
     num::ParseIntError,
     process,
+    str::ParseBoolError,
     sync::Arc,
 };
 
@@ -15,8 +16,8 @@ use crate::{
 };
 
 use super::{
-    DatabaseConfig, DatabaseConfigBuilder, Environment, JWTConfig, JWTConfigBuilder, ServerConfig,
-    ServerConfigBuilder,
+    DatabaseConfig, DatabaseConfigBuilder, Environment, JWTConfig, JWTConfigBuilder, RedisConfig,
+    RedisConfigBuilder, ServerConfig, ServerConfigBuilder,
 };
 
 /// Represents possible configuration-related errors.
@@ -30,10 +31,17 @@ pub enum ConfigError {
 
     #[error("Failed to parse environment variable `{0}:{1}`")]
     ParseError(&'static str, String),
+
+    #[error(transparent)]
+    RedisError(#[from] redis::RedisError),
 }
 
 impl ConfigError {
     pub fn from_parse_int_error(var_name: &'static str, e: ParseIntError) -> Self {
+        ConfigError::ParseError(var_name, e.to_string())
+    }
+
+    pub fn from_parse_bool_error(var_name: &'static str, e: ParseBoolError) -> Self {
         ConfigError::ParseError(var_name, e.to_string())
     }
 }
@@ -62,6 +70,7 @@ pub struct AppConfig {
     database: DatabaseConfig,
     environment: Environment,
     jwt: JWTConfig,
+    redis: RedisConfig,
 }
 
 impl Default for AppConfig {
@@ -71,6 +80,7 @@ impl Default for AppConfig {
             database: DatabaseConfig::default(),
             environment: Environment::Development,
             jwt: JWTConfig::default(),
+            redis: RedisConfig::default(),
         }
     }
 }
@@ -89,6 +99,9 @@ impl AppConfig {
     pub const fn get_jwt(&self) -> &JWTConfig {
         &self.jwt
     }
+    pub const fn get_redis(&self) -> &RedisConfig {
+        &self.redis
+    }
 }
 
 /// Builder for `AppConfig`, combining multiple configuration types.
@@ -97,6 +110,7 @@ pub struct AppConfigBuilder {
     database_builder: Option<DatabaseConfigBuilder>,
     environment: Option<Environment>,
     jwt_builder: Option<JWTConfigBuilder>,
+    redis_builder: Option<RedisConfigBuilder>,
 }
 
 impl AppConfigBuilder {
@@ -106,6 +120,7 @@ impl AppConfigBuilder {
             database_builder: None,
             environment: None,
             jwt_builder: None,
+            redis_builder: None,
         }
     }
 
@@ -126,6 +141,11 @@ impl AppConfigBuilder {
 
     pub fn with_jwt(mut self, builder: JWTConfigBuilder) -> Self {
         self.jwt_builder = Some(builder);
+        self
+    }
+
+    pub fn with_redis(mut self, builder: RedisConfigBuilder) -> Self {
+        self.redis_builder = Some(builder);
         self
     }
 }
@@ -180,11 +200,20 @@ impl ConfigBuilder for AppConfigBuilder {
             }
         };
 
+        let redis = match *&self.redis_builder {
+            Some(ref builder) => builder.build(),
+            None => {
+                log::warn!("RedisConfig not set. Using default configuration");
+                AppConfig::default().redis
+            }
+        };
+
         AppConfig {
             server,
             database,
             environment,
             jwt,
+            redis,
         }
     }
 }
@@ -201,10 +230,12 @@ impl AppState {
         let server_config = ServerConfigBuilder::new();
         let database_config = DatabaseConfigBuilder::new();
         let jwt_config = JWTConfigBuilder::new();
+        let redis_config = RedisConfigBuilder::new();
         let app_config = AppConfigBuilder::new()
             .with_server(server_config)
             .with_database(database_config)
             .with_jwt(jwt_config)
+            .with_redis(redis_config)
             .build();
         let pool = Arc::new(PgPool::connect_lazy_with(
             app_config.get_database().to_pg_connect_options(),
