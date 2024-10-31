@@ -16,8 +16,9 @@ use crate::{
 };
 
 use super::{
-    DatabaseConfig, DatabaseConfigBuilder, Environment, JWTConfig, JWTConfigBuilder, RedisConfig,
-    RedisConfigBuilder, ServerConfig, ServerConfigBuilder,
+    DatabaseConfig, DatabaseConfigBuilder, Environment, JWTConfig, JWTConfigBuilder,
+    RateLimitConfig, RateLimitConfigBuilder, RedisConfig, RedisConfigBuilder, ServerConfig,
+    ServerConfigBuilder,
 };
 
 /// Represents possible configuration-related errors.
@@ -71,6 +72,7 @@ pub struct AppConfig {
     environment: Environment,
     jwt: JWTConfig,
     redis: RedisConfig,
+    rate_limit: RateLimitConfig,
 }
 
 impl Default for AppConfig {
@@ -81,6 +83,7 @@ impl Default for AppConfig {
             environment: Environment::Development,
             jwt: JWTConfig::default(),
             redis: RedisConfig::default(),
+            rate_limit: RateLimitConfig::default(),
         }
     }
 }
@@ -102,6 +105,9 @@ impl AppConfig {
     pub const fn get_redis(&self) -> &RedisConfig {
         &self.redis
     }
+    pub const fn get_rate_limit(&self) -> &RateLimitConfig {
+        &self.rate_limit
+    }
 }
 
 /// Builder for `AppConfig`, combining multiple configuration types.
@@ -111,6 +117,7 @@ pub struct AppConfigBuilder {
     environment: Option<Environment>,
     jwt_builder: Option<JWTConfigBuilder>,
     redis_builder: Option<RedisConfigBuilder>,
+    rate_limit_builder: Option<RateLimitConfigBuilder>,
 }
 
 impl AppConfigBuilder {
@@ -121,6 +128,7 @@ impl AppConfigBuilder {
             environment: None,
             jwt_builder: None,
             redis_builder: None,
+            rate_limit_builder: None,
         }
     }
 
@@ -146,6 +154,11 @@ impl AppConfigBuilder {
 
     pub fn with_redis(mut self, builder: RedisConfigBuilder) -> Self {
         self.redis_builder = Some(builder);
+        self
+    }
+
+    pub fn with_rate_limit(mut self, builder: RateLimitConfigBuilder) -> Self {
+        self.rate_limit_builder = Some(builder);
         self
     }
 }
@@ -208,12 +221,21 @@ impl ConfigBuilder for AppConfigBuilder {
             }
         };
 
+        let rate_limit = match *&self.rate_limit_builder {
+            Some(ref builder) => builder.build(),
+            None => {
+                log::warn!("RateLimitConfig not set. Using default configuration");
+                AppConfig::default().rate_limit
+            }
+        };
+
         AppConfig {
             server,
             database,
             environment,
             jwt,
             redis,
+            rate_limit,
         }
     }
 }
@@ -231,12 +253,16 @@ impl AppState {
         let database_config = DatabaseConfigBuilder::new();
         let jwt_config = JWTConfigBuilder::new();
         let redis_config = RedisConfigBuilder::new();
+        let rate_limit_config = RateLimitConfigBuilder::new()
+            .with_redis_url(&redis_config.build().to_connection_string());
         let app_config = AppConfigBuilder::new()
             .with_server(server_config)
             .with_database(database_config)
             .with_jwt(jwt_config)
             .with_redis(redis_config)
+            .with_rate_limit(rate_limit_config)
             .build();
+
         let pool = Arc::new(PgPool::connect_lazy_with(
             app_config.get_database().to_pg_connect_options(),
         ));
