@@ -16,6 +16,21 @@ services:
         source: postgres-data
         target: /var/lib/postgresql/data
 
+  redis:
+    image: redis:bookworm
+    container_name: redis
+    ports:
+      - target: $REDIS_PORT
+        published: $REDIS_PORT
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: volume
+        source: redis-data
+        target: /data
+
 volumes:
   postgres-data:
     name: postgres-data
+  redis-data:
+    name: redis-data

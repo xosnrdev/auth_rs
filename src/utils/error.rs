@@ -4,6 +4,7 @@ use validator::ValidationErrors;
 
 use crate::{
     dto::{AuthResponse, ErrorDetails},
+    middlewares::RateLimitError,
     services::{JWTServiceError, RefreshTokenServiceError, UserServiceError},
 };
 
@@ -135,6 +136,18 @@ impl From<TokenExtractError> for AuthResponse {
                 error_description: e.to_string(),
                 error_uri: "https://tools.ietf.org/html/rfc6750#section-3.1",
             },
+        };
+
+        AuthResponse::error(error_details)
+    }
+}
+
+impl From<RateLimitError> for AuthResponse {
+    fn from(error: RateLimitError) -> Self {
+        let error_details = ErrorDetails {
+            error: "rate_limit_error",
+            error_description: error.to_string(),
+            error_uri: "https://tools.ietf.org/html/rfc6585#section-4",
         };
 
         AuthResponse::error(error_details)

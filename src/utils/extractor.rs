@@ -50,7 +50,7 @@ impl TokenExtract {
     ///
     /// * `Ok(&str)` - The extracted JWT token
     /// * `Err(TokenExtractError)` - If the token cannot be extracted
-    fn extract(req: &HttpRequest) -> Result<&str, TokenExtractError> {
+    pub fn extract(req: &HttpRequest) -> Result<String, TokenExtractError> {
         // Get the Authorization header
         let auth_header = req
             .headers()
@@ -73,7 +73,7 @@ impl TokenExtract {
             return Err(TokenExtractError::InvalidHeaderContent);
         }
 
-        Ok(token.trim())
+        Ok(token.to_string())
     }
 }
 
@@ -84,7 +84,7 @@ impl FromRequest for TokenExtract {
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         // Wrap the result in a future
         let fut = match TokenExtract::extract(req) {
-            Ok(token) => ready(Ok(TokenExtract(token.to_string()))),
+            Ok(token) => ready(Ok(TokenExtract(token))),
             Err(e) => ready(Err(actix_web::error::ErrorUnauthorized(e))),
         };
 
