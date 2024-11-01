@@ -22,9 +22,6 @@ pub enum JWTServiceError {
 pub type Result<T> = std::result::Result<T, JWTServiceError>;
 
 #[derive(Debug, Serialize, Deserialize)]
-/// JWT Custom Claims (RFC 7519 Section 4.1)
-/// TODO: Add more required claims as recommended by RFC 7519
-/// We will go with this for now
 pub struct Claims {
     /// RFC 7519 Section 4.1.4: Expiration Time claim
     exp: i64,
@@ -164,17 +161,12 @@ impl JWTService {
     }
 }
 
-/// Unit tests verifying RFC compliance to-be
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn create_test_config() -> JWTConfig {
-        JWTConfig::new(
-            "test_secret",
-            7,  // refresh token duration in days
-            15, // access token duration in minutes
-        )
+        JWTConfig::new("test_secret", 7, 15)
     }
 
     fn create_jwt() -> JWTService {
