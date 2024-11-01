@@ -73,7 +73,7 @@ impl TokenExtract {
             return Err(TokenExtractError::InvalidHeaderContent);
         }
 
-        Ok(token.to_string())
+        Ok(token.trim().to_string())
     }
 }
 
