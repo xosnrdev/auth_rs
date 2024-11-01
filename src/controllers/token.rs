@@ -21,10 +21,7 @@ pub async fn refresh_token(
 
     match response {
         Ok(token) => HttpResponse::Ok().json(token),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::Unauthorized().json(auth_response)
-        }
+        Err(e) => HttpResponse::Unauthorized().json(AuthResponse::from(e)),
     }
 }
 
@@ -37,10 +34,7 @@ pub async fn logout(app_state: web::Data<AppState>, token: TokenExtract) -> Http
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::Unauthorized().json(auth_response)
-        }
+        Err(e) => HttpResponse::Unauthorized().json(AuthResponse::from(e)),
     }
 }
 
@@ -53,10 +47,7 @@ pub async fn delete_me(token: TokenExtract, app_state: web::Data<AppState>) -> H
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::Unauthorized().json(auth_response)
-        }
+        Err(e) => HttpResponse::Unauthorized().json(AuthResponse::from(e)),
     }
 }
 
@@ -69,10 +60,7 @@ pub async fn get_me(app_state: web::Data<AppState>, token: TokenExtract) -> Http
 
     match response {
         Ok(user) => HttpResponse::Ok().json(user),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::Unauthorized().json(auth_response)
-        }
+        Err(e) => HttpResponse::Unauthorized().json(AuthResponse::from(e)),
     }
 }
 
@@ -89,10 +77,7 @@ pub async fn update_password(
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::BadRequest().json(auth_response)
-        }
+        Err(e) => HttpResponse::BadRequest().json(AuthResponse::from(e)),
     }
 }
 
@@ -109,9 +94,6 @@ pub async fn update_email(
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::BadRequest().json(auth_response)
-        }
+        Err(e) => HttpResponse::BadRequest().json(AuthResponse::from(e)),
     }
 }

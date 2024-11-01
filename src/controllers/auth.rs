@@ -14,10 +14,7 @@ pub async fn register(app_state: web::Data<AppState>, dto: web::Json<RegisterDto
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::BadRequest().json(auth_response)
-        }
+        Err(e) => HttpResponse::BadRequest().json(AuthResponse::from(e)),
     }
 }
 
@@ -33,9 +30,6 @@ pub async fn login(
 
     match response {
         Ok(auth_response) => HttpResponse::Ok().json(auth_response),
-        Err(e) => {
-            let auth_response: AuthResponse = e.into();
-            HttpResponse::BadRequest().json(auth_response)
-        }
+        Err(e) => HttpResponse::BadRequest().json(AuthResponse::from(e)),
     }
 }
