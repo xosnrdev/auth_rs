@@ -1,4 +1,8 @@
 /target
 .env
-.idea
 .DS_Store
+.pgdata
+logfile
+result
+.vscode
+.direnv
