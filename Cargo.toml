@@ -17,7 +17,11 @@ path = "src/main.rs"
 anyhow = "1.0.94"
 argon2 = "0.5.3"
 axum = { version = "0.7.9", features = ["tracing"] }
-axum-extra = { version = "0.9.6", features = ["cookie", "typed-header", "cookie-private"] }
+axum-extra = { version = "0.9.6", features = [
+  "cookie",
+  "typed-header",
+  "cookie-private",
+] }
 chrono = { version = "0.4.38", default-features = false, features = [
   "clock",
   "serde",
@@ -57,14 +61,3 @@ panic = "unwind"
 lto = true
 codegen-units = 1
 strip = true
-
-[package.metadata.release]
-shared-version = true
-tag-name = "v{{version}}"
-pre-release-replacements = [
-    {file="CHANGELOG.md", search="Unreleased", replace="{{version}}", min=1},
-    {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...{{tag_name}}", exactly=1},
-    {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}", min=1},
-    {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n## [Unreleased] - ReleaseDate\n", exactly=1},
-    {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/xosnrdev/auth-rs/compare/{{tag_name}}...HEAD", exactly=1}
-]
