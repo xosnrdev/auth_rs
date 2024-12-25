@@ -24,7 +24,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-          
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,9 +36,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          nix develop --command bash -c "
-            cargo test
-          "
+          nix develop --command cargo test
 
   rustfmt:
     runs-on: ubuntu-latest
