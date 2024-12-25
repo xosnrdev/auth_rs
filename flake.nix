@@ -137,7 +137,7 @@
             export APP__ENVIRONMENT=local
 
             export APP__JWT__SECRET=$(openssl rand -base64 64)
-            export APP__JWT__ACCESS_TOKEN_EXPIRATION_SECS=3600
+            export APP__JWT__ACCESS_TOKEN_EXPIRATION_SECS=900
             export APP__JWT__REFRESH_TOKEN_EXPIRATION_SECS=86400
 
             # ------------------------------------------------------------------
