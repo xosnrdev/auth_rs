@@ -1,5 +1,5 @@
-mod token;
+mod session;
 mod user;
 
-pub use token::*;
+pub use session::*;
 pub use user::*;

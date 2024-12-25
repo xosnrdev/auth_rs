@@ -1,8 +1,21 @@
-use actix_web::HttpResponse;
+use serde::Serialize;
 
-use crate::dto::{AuthResponse, AuthStatus};
+use crate::utils::{AppError, SuccessResponse};
 
-pub async fn health_check() -> HttpResponse {
-    let response = AuthResponse::new(AuthStatus::Success, "Service is operational");
-    HttpResponse::Ok().json(response)
+#[derive(Serialize)]
+pub struct ServiceInfo {
+    name: String,
+    version: String,
+    description: String,
+}
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub async fn health_check() -> Result<SuccessResponse<ServiceInfo>, AppError> {
+    let body = ServiceInfo {
+        name: "auth-rs".to_string(),
+        version: VERSION.to_string(),
+        description: "Auth Service PoC in Rust".to_string(),
+    };
+    Ok(SuccessResponse::ok(body))
 }
