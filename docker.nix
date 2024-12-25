@@ -2,7 +2,7 @@
 
 let app = import ./default.nix { inherit pkgs; };
 in pkgs.dockerTools.buildImage {
-  name = app.pname;
+  name = "xosnrdev/${app.name}";
   tag = app.version;
   created = "now";
 

@@ -20,26 +20,26 @@ pub enum Typ {
 #[serde(rename_all = "camelCase")]
 pub struct Claims {
     /// A unique identifier for the token (often the user ID).
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     jti: Uuid,
     /// The subject of the token, typically the user's email.
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     sub: String,
     /// The intended audience for the token.
     aud: String,
     /// The issuer of the token.
     iss: String,
     /// Indicates whether the user is an administrator.
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     is_admin: bool,
     /// The time at which the token was issued, in Unix timestamp format.
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     iat: i64,
     /// The expiration time of the token, in Unix timestamp format.
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     exp: i64,
     /// The type of token (Access or Refresh).
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     typ: Typ,
 }
 

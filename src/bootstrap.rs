@@ -65,9 +65,9 @@ fn init_tracing() -> AppResult<()> {
 
 pub async fn create_connection_pool(config: &DatabaseConfig) -> AppResult<PgPool> {
     PgPoolOptions::new()
-        .max_connections(*config.max_connections())
-        .min_connections(*config.min_connections())
-        .acquire_timeout(Duration::from_secs(*config.acquire_timeout_secs()))
+        .max_connections(*config.get_max_connections())
+        .min_connections(*config.get_min_connections())
+        .acquire_timeout(Duration::from_secs(*config.get_acquire_timeout_secs()))
         .connect_with(config.to_pg_connect_options())
         .await
         .context("Failed to create database connection pool")
@@ -75,11 +75,11 @@ pub async fn create_connection_pool(config: &DatabaseConfig) -> AppResult<PgPool
 
 #[derive(Debug, Clone, Getters)]
 pub struct AppState {
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     db_pool: PgPool,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     config: AppConfig,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     key: Key,
 }
 
@@ -90,17 +90,17 @@ impl FromRef<AppState> for Key {
 }
 
 pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
-    let key = Key::from(config.server().cookie_secret().as_bytes());
+    let key = Key::from(config.server().get_cookie_secret().as_bytes());
     let state = AppState {
         db_pool,
         config,
         key,
     };
-    let timeout = Duration::from_secs(*state.config.server().timeout_in_secs());
+    let timeout = Duration::from_secs(*state.config.server().get_timeout_in_secs());
     let origins: Vec<HeaderValue> = state
         .config
         .server()
-        .origins()
+        .get_origins()
         .split(',')
         .map(str::trim)
         .filter_map(|s| s.parse::<HeaderValue>().ok())
@@ -131,8 +131,8 @@ pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
         }))
         .layer(BufferLayer::new(1024))
         .layer(RateLimitLayer::new(
-            *state.config.server().rate_limit_burst(),
-            Duration::from_secs(*state.config.server().rate_limit_per_secs()),
+            *state.config.server().get_rate_limit_burst(),
+            Duration::from_secs(*state.config.server().get_rate_limit_per_secs()),
         ));
 
     let users_router = Router::new()

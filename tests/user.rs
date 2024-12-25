@@ -115,7 +115,7 @@ async fn test_user(db_pool: PgPool) -> AppResult<()> {
         "Refresh token should not be empty"
     );
 
-    const ACCESS_TOKEN_DURATION: i64 = 3600;
+    const ACCESS_TOKEN_DURATION: i64 = 900;
     const REFRESH_TOKEN_DURATION: i64 = 86400;
 
     assert_eq!(

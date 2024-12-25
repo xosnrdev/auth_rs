@@ -59,7 +59,7 @@ impl<'a> TokenManager<'a> {
                 Err(err) => bail!("{}", err),
             };
 
-        if *token_data.claims.typ() != typ {
+        if *token_data.claims.get_typ() != typ {
             bail!("Invalid token type");
         }
 

@@ -36,7 +36,8 @@ impl FromRequestParts<AppState> for Claims {
             .map_err(|e| AppError::new(StatusCode::UNAUTHORIZED, format!("{}", e)))?;
 
         // Configure the TokenManager
-        let token_manager = TokenManager::new(state.config().jwt().secret().as_bytes(), None);
+        let token_manager =
+            TokenManager::new(state.get_config().get_jwt().get_secret().as_bytes(), None);
 
         token_manager
             .validate_access_token(bearer.token())
@@ -58,12 +59,13 @@ impl FromRequestParts<AppState> for RefreshClaims {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let jar = PrivateCookieJar::from_request_parts(parts, state.key())
+        let jar = PrivateCookieJar::from_request_parts(parts, state.get_key())
             .await
             .map_err(|e| AppError::new(StatusCode::UNAUTHORIZED, format!("{}", e)))?;
 
         if let Some(token) = get_session_token(&jar) {
-            let token_manager = TokenManager::new(state.config().jwt().secret().as_bytes(), None);
+            let token_manager =
+                TokenManager::new(state.get_config().get_jwt().get_secret().as_bytes(), None);
 
             token_manager
                 .validate_refresh_token(&token)
@@ -88,7 +90,7 @@ fn get_session_token(jar: &PrivateCookieJar) -> Option<String> {
 
 /// Checks if the user has admin privileges.
 pub fn check_admin(claims: &Claims) -> Result<(), AppError> {
-    if !claims.is_admin() {
+    if !claims.get_is_admin() {
         Err(AppError::new(
             StatusCode::FORBIDDEN,
             "Access denied: admin privileges required",

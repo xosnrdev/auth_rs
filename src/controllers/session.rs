@@ -23,13 +23,14 @@ pub async fn refresh_session_by_cookie(
     State(state): State<AppState>,
     claims: RefreshClaims,
 ) -> Result<SuccessResponse<AccessTokenResDto>, AppError> {
-    let token_manager = TokenManager::new(state.config().jwt().secret().as_bytes(), None);
+    let token_manager =
+        TokenManager::new(state.get_config().get_jwt().get_secret().as_bytes(), None);
 
     handle_stale_sessions(
         &state,
-        *claims.0.jti(),
-        *claims.0.is_admin(),
-        claims.0.sub(),
+        *claims.0.get_jti(),
+        *claims.0.get_is_admin(),
+        claims.0.get_sub(),
         token_manager,
     )
     .await
@@ -39,15 +40,16 @@ pub async fn refresh_session_by_body(
     State(state): State<AppState>,
     Json(dto): Json<AccessTokenReqDto>,
 ) -> Result<SuccessResponse<AccessTokenResDto>, AppError> {
-    let token_manager = TokenManager::new(state.config().jwt().secret().as_bytes(), None);
+    let token_manager =
+        TokenManager::new(state.get_config().get_jwt().get_secret().as_bytes(), None);
 
     let token = token_manager.validate_refresh_token(&dto.refresh_token)?;
 
     handle_stale_sessions(
         &state,
-        *token.jti(),
-        *token.is_admin(),
-        token.sub(),
+        *token.get_jti(),
+        *token.get_is_admin(),
+        token.get_sub(),
         token_manager,
     )
     .await
@@ -58,7 +60,7 @@ pub async fn revoke_my_session(
     jar: PrivateCookieJar,
     claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
-    revoke_session(state.db_pool(), *claims.jti()).await?;
+    revoke_session(state.get_db_pool(), *claims.get_jti()).await?;
 
     let cookie = create_cookie_session("", 0);
     let jar = jar.add(cookie);
@@ -73,7 +75,7 @@ pub async fn revoke_user_session(
 ) -> Result<impl IntoResponse, AppError> {
     check_admin(&claims)?;
 
-    revoke_session(state.db_pool(), user_id).await?;
+    revoke_session(state.get_db_pool(), user_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -83,7 +85,7 @@ pub async fn revoke_all_sessions(
 ) -> Result<impl IntoResponse, AppError> {
     check_admin(&claims)?;
 
-    revoke_session(state.db_pool(), Uuid::nil()).await?;
+    revoke_session(state.get_db_pool(), Uuid::nil()).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -94,18 +96,23 @@ async fn handle_stale_sessions(
     sub: &str,
     token_manager: TokenManager<'_>,
 ) -> Result<SuccessResponse<AccessTokenResDto>, AppError> {
-    if let Some(session) = get_session_by_user_id(state.db_pool(), user_id).await? {
+    if let Some(session) = get_session_by_user_id(state.get_db_pool(), user_id).await? {
         if session.is_expired() || session.is_revoked {
-            delete_session_by_user_id(state.db_pool(), session.user_id).await?;
+            delete_session_by_user_id(state.get_db_pool(), session.user_id).await?;
             return Err(AppError::new(StatusCode::UNAUTHORIZED, "Invalid token"));
         } else {
-            let duration = Duration::seconds(*state.config().jwt().access_token_expiration_secs());
+            let duration = Duration::seconds(
+                *state
+                    .get_config()
+                    .get_jwt()
+                    .get_access_token_expiration_secs(),
+            );
             let (access_token, access_claims) =
                 token_manager.create_access_token(session.user_id, sub, is_admin, duration)?;
 
             return Ok(SuccessResponse::created(AccessTokenResDto {
                 access_token,
-                access_token_expires_at: *access_claims.exp(),
+                access_token_expires_at: *access_claims.get_exp(),
             }));
         }
     }

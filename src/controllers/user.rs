@@ -32,7 +32,7 @@ pub async fn register(
 
     let (username, email) = process_optional_fields(dto.username, dto.email)?;
 
-    if get_user_by_username_or_email(state.db_pool(), &username, &email)
+    if get_user_by_username_or_email(state.get_db_pool(), &username, &email)
         .await?
         .is_some()
     {
@@ -49,7 +49,7 @@ pub async fn register(
         dto.avatar_url,
     );
     tracing::info!("Creating new user: {}", new_user);
-    let user = services::create_user(state.db_pool(), &new_user).await?;
+    let user = services::create_user(state.get_db_pool(), &new_user).await?;
     Ok(SuccessResponse::created(UserResDto::from(user)))
 }
 
@@ -66,7 +66,7 @@ pub async fn get_all_users(
     // Limit the number of users to fetch to 100 for now.
     let limit = limit.min(100);
 
-    let users = services::get_all_users(state.db_pool(), limit, offset).await?;
+    let users = services::get_all_users(state.get_db_pool(), limit, offset).await?;
     Ok(SuccessResponse::ok(GetAllUsersResDto::from(users)))
 }
 
@@ -75,7 +75,7 @@ pub async fn update_me(
     claims: Claims,
     Json(dto): Json<PatchReqDto>,
 ) -> Result<SuccessResponse<UserResDto>, AppError> {
-    handle_patch_updates(&state, dto, *claims.jti()).await
+    handle_patch_updates(&state, dto, *claims.get_jti()).await
 }
 
 pub async fn update_user(
@@ -96,7 +96,7 @@ pub async fn delete_user(
 ) -> Result<impl IntoResponse, AppError> {
     check_admin(&claims)?;
 
-    services::delete_user(state.db_pool(), id).await?;
+    services::delete_user(state.get_db_pool(), id).await?;
     tracing::info!("Deleted user with ID: {}", id);
     Ok(StatusCode::NO_CONTENT)
 }
@@ -105,8 +105,8 @@ pub async fn delete_me(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
-    services::delete_user(state.db_pool(), *claims.jti()).await?;
-    tracing::info!("Deleted user with ID: {}", claims.jti());
+    services::delete_user(state.get_db_pool(), *claims.get_jti()).await?;
+    tracing::info!("Deleted user with ID: {}", claims.get_jti());
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -116,7 +116,7 @@ pub async fn get_user(
     claims: Claims,
 ) -> Result<SuccessResponse<UserResDto>, AppError> {
     check_admin(&claims)?;
-    let user = get_user_by_id(state.db_pool(), id)
+    let user = get_user_by_id(state.get_db_pool(), id)
         .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "User not found"))?;
     Ok(SuccessResponse::ok(UserResDto::from(user)))
@@ -126,7 +126,7 @@ pub async fn get_me(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<SuccessResponse<UserResDto>, AppError> {
-    let user = get_user_by_id(state.db_pool(), *claims.jti())
+    let user = get_user_by_id(state.get_db_pool(), *claims.get_jti())
         .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "User not found"))?;
     Ok(SuccessResponse::ok(UserResDto::from(user)))
@@ -140,13 +140,13 @@ async fn handle_patch_updates(
     dto.validate()
         .map_err(|e| AppError::new(StatusCode::UNPROCESSABLE_ENTITY, format!("{}", e)))?;
 
-    let mut user = get_user_by_id(state.db_pool(), user_id)
+    let mut user = get_user_by_id(state.get_db_pool(), user_id)
         .await?
         .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "User not found"))?;
 
     if dto.username.is_some() {
         let username = dto.username.unwrap_or_default();
-        if get_user_by_username(state.db_pool(), &username)
+        if get_user_by_username(state.get_db_pool(), &username)
             .await?
             .is_some()
         {
@@ -160,14 +160,17 @@ async fn handle_patch_updates(
 
     if dto.email.is_some() {
         let email = dto.email.unwrap_or_default();
-        if get_user_by_email(state.db_pool(), &email).await?.is_some() {
+        if get_user_by_email(state.get_db_pool(), &email)
+            .await?
+            .is_some()
+        {
             return Err(AppError::new(StatusCode::CONFLICT, "Email already exists"));
         }
         user.email = email;
     }
 
     if dto.github_id.is_some() {
-        if get_user_by_github_id(state.db_pool(), dto.github_id.unwrap())
+        if get_user_by_github_id(state.get_db_pool(), dto.github_id.unwrap())
             .await?
             .is_some()
         {
@@ -188,6 +191,6 @@ async fn handle_patch_updates(
         user.avatar_url = dto.avatar_url;
     }
 
-    let user = services::update_user(state.db_pool(), &user).await?;
+    let user = services::update_user(state.get_db_pool(), &user).await?;
     Ok(SuccessResponse::ok(UserResDto::from(user)))
 }

@@ -25,7 +25,7 @@ pub async fn login(
 
     let (username, email) = process_optional_fields(dto.username, dto.email)?;
 
-    let user = get_user_by_username_or_email(state.db_pool(), &username, &email)
+    let user = get_user_by_username_or_email(state.get_db_pool(), &username, &email)
         .await?
         .ok_or_else(|| AppError::new(StatusCode::UNAUTHORIZED, "Invalid credentials"))?;
 
@@ -36,17 +36,23 @@ pub async fn login(
         ));
     }
 
-    let token_manager = TokenManager::new(state.config().jwt().secret().as_bytes(), None);
+    let token_manager =
+        TokenManager::new(state.get_config().get_jwt().get_secret().as_bytes(), None);
 
-    if let Some(session) = get_session_by_user_id(state.db_pool(), user.id).await? {
+    if let Some(session) = get_session_by_user_id(state.get_db_pool(), user.id).await? {
         // Check for stale sessions
         // Enforce the policy of a single active session per user, ensuring it is not expired or revoked
         // Prevent the accumulation of stale sessions in the database
         // This approach might be revised in the future if requirements change
         if session.is_expired() || session.is_revoked {
-            delete_session_by_user_id(state.db_pool(), session.user_id).await?;
+            delete_session_by_user_id(state.get_db_pool(), session.user_id).await?;
         } else {
-            let duration = Duration::seconds(*state.config().jwt().access_token_expiration_secs());
+            let duration = Duration::seconds(
+                *state
+                    .get_config()
+                    .get_jwt()
+                    .get_access_token_expiration_secs(),
+            );
             let (access_token, access_claims) = token_manager.create_access_token(
                 session.user_id,
                 &user.email,
@@ -59,7 +65,7 @@ pub async fn login(
                 session.expires_at.timestamp(),
             ));
 
-            let access_token_expires_at = *access_claims.exp() - *access_claims.iat();
+            let access_token_expires_at = *access_claims.get_exp() - *access_claims.get_iat();
             let refresh_token_expires_at =
                 session.expires_at.timestamp() - session.created_at.timestamp();
 
@@ -77,8 +83,14 @@ pub async fn login(
         }
     }
 
-    let refresh_exp_secs = *state.config().jwt().refresh_token_expiration_secs();
-    let access_exp_secs = *state.config().jwt().access_token_expiration_secs();
+    let refresh_exp_secs = *state
+        .get_config()
+        .get_jwt()
+        .get_refresh_token_expiration_secs();
+    let access_exp_secs = *state
+        .get_config()
+        .get_jwt()
+        .get_access_token_expiration_secs();
     let refresh_duration = Duration::seconds(refresh_exp_secs);
     let access_duration = Duration::seconds(access_exp_secs);
 
@@ -95,13 +107,16 @@ pub async fn login(
     let session = Session::new(user.id, &refresh_token, Duration::seconds(refresh_exp_secs));
 
     // Store the session in the database
-    create_session(state.db_pool(), &session).await?;
+    create_session(state.get_db_pool(), &session).await?;
 
     // Add the refresh token to the cookie jar
-    let jar = jar.add(create_cookie_session(&refresh_token, *refresh_claims.exp()));
+    let jar = jar.add(create_cookie_session(
+        &refresh_token,
+        *refresh_claims.get_exp(),
+    ));
 
-    let access_token_expires_at = *access_claims.exp() - *access_claims.iat();
-    let refresh_token_expires_at = *refresh_claims.exp() - *refresh_claims.iat();
+    let access_token_expires_at = *access_claims.get_exp() - *access_claims.get_iat();
+    let refresh_token_expires_at = *refresh_claims.get_exp() - *refresh_claims.get_iat();
 
     let body = LoginResDto {
         session_id: session.id,
@@ -120,7 +135,7 @@ pub async fn logout(
     claims: Claims,
     jar: PrivateCookieJar,
 ) -> Result<impl IntoResponse, AppError> {
-    delete_session_by_user_id(state.db_pool(), *claims.jti()).await?;
+    delete_session_by_user_id(state.get_db_pool(), *claims.get_jti()).await?;
 
     let cookie = create_cookie_session("", 0);
     let jar = jar.add(cookie);

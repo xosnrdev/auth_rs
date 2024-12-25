@@ -17,7 +17,7 @@ pub struct AppConfig {
     #[getset(get = "pub", get_mut = "pub")]
     database: DatabaseConfig,
     pub environment: AppEnvironment,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     jwt: JwtConfig,
 }
 
@@ -60,15 +60,15 @@ pub struct ServerConfig {
     host: String,
     #[getset(get = "pub", set = "pub")]
     port: u16,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     timeout_in_secs: u64,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     origins: String,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     rate_limit_per_secs: u64,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     rate_limit_burst: u64,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     cookie_secret: String,
 }
 
@@ -80,22 +80,22 @@ pub struct DatabaseConfig {
     #[getset(get = "pub", set = "pub")]
     #[serde(default)]
     password: String,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     #[serde(default)]
     port: u16,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     #[serde(default)]
     host: String,
     #[getset(get = "pub", set = "pub")]
     #[serde(default)]
     name: String,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     ssl_mode: PgSslModeExt,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     max_connections: u32,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     min_connections: u32,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     acquire_timeout_secs: u64,
 }
 
@@ -140,11 +140,11 @@ pub enum AppEnvironment {
 
 #[derive(Debug, Deserialize, Getters, Clone)]
 pub struct JwtConfig {
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     #[serde(default)]
     secret: String,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     access_token_expiration_secs: i64,
-    #[getset(get = "pub")]
+    #[getset(get = "pub with_prefix")]
     refresh_token_expiration_secs: i64,
 }

@@ -9,6 +9,10 @@ pkgs.mkShell {
     cargo-sort
     cargo-deny
     postgresql
+    rustc
+    cargo
+    rustfmt
+    clippy
   ];
 
   shellHook = ''
@@ -70,9 +74,5 @@ pkgs.mkShell {
 
     # Run migrations
     sqlx migrate run
-
-    # Set the default shell to zsh
-    export SHELL=$(which zsh)
-    exec zsh
   '';
 }
