@@ -43,13 +43,18 @@
           };
         };
 
+        # Image author
+        author = "xosnrdev";
+        # Container registry
+        registry = "ghcr.io";
+
         # ----------------------------------------------------------------------
         # Conditionally build Docker image only on Linux
         # (dockerTools can break on macOS, or cause flake check issues).
         # ----------------------------------------------------------------------
         dockerImage = if pkgs.stdenv.isLinux then
           pkgs.dockerTools.buildImage {
-            name = "xosnrdev/${rustApp.name}";
+            name = "${registry}/${author}/${rustApp.pname}-rs";
             tag = rustApp.version;
             created = "now";
 
@@ -61,13 +66,13 @@
               ];
               Cmd = [ "${rustApp}/bin/${rustApp.pname}" ];
               Labels = {
-                "org.opencontainers.image.title" = rustApp.pname;
+                "org.opencontainers.image.title" = "${rustApp.pname}-rs";
                 "org.opencontainers.image.version" = rustApp.version;
                 "org.opencontainers.image.description" =
                   rustApp.meta.description;
                 "org.opencontainers.image.documentation" =
                   rustApp.meta.homepage;
-                "org.opencontainers.image.authors" = "xosnrdev";
+                "org.opencontainers.image.authors" = author;
                 "org.opencontainers.image.source" = rustApp.meta.repository;
                 "org.opencontainers.image.licenses" = "MIT";
               };
