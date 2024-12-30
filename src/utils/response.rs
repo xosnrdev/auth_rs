@@ -1,6 +1,3 @@
-#![deny(missing_docs)]
-//! Application-wide response and error handling utilities.
-
 use anyhow::Result;
 use axum::{
     http::{header, HeaderValue, StatusCode},

@@ -28,11 +28,14 @@ use crate::{
 pub async fn run_application(config: AppConfig) -> AppResult<()> {
     init_tracing()?;
 
-    let db_pool = create_connection_pool(config.database()).await?;
+    let db_pool = create_connection_pool(config.get_database()).await?;
 
     let app = create_router(db_pool, config.clone());
 
-    let address = SocketAddr::new(config.server().host().parse()?, *config.server().port());
+    let address = SocketAddr::new(
+        config.get_server().get_host().parse()?,
+        *config.get_server().get_port(),
+    );
 
     let listener = TcpListener::bind(address).await?;
 
@@ -90,16 +93,16 @@ impl FromRef<AppState> for Key {
 }
 
 pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
-    let key = Key::from(config.server().get_cookie_secret().as_bytes());
+    let key = Key::from(config.get_server().get_cookie_secret().as_bytes());
     let state = AppState {
         db_pool,
         config,
         key,
     };
-    let timeout = Duration::from_secs(*state.config.server().get_timeout_in_secs());
+    let timeout = Duration::from_secs(*state.config.get_server().get_timeout_in_secs());
     let origins: Vec<HeaderValue> = state
         .config
-        .server()
+        .get_server()
         .get_origins()
         .split(',')
         .map(str::trim)
@@ -131,8 +134,8 @@ pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
         }))
         .layer(BufferLayer::new(1024))
         .layer(RateLimitLayer::new(
-            *state.config.server().get_rate_limit_burst(),
-            Duration::from_secs(*state.config.server().get_rate_limit_per_secs()),
+            *state.config.get_server().get_rate_limit_burst(),
+            Duration::from_secs(*state.config.get_server().get_rate_limit_per_secs()),
         ));
 
     let users_router = Router::new()

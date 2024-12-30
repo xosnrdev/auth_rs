@@ -1,19 +1,11 @@
+use std::fmt;
+
 use chrono::{DateTime, Duration, Utc};
-use derive_more::Display;
 use serde::Serialize;
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, FromRow, Display)]
-#[display(
-    "Session: {{ id: {}, refresh_token: {}, is_revoked: {}, expires_at: {}, created_at: {}, updated_at: {} }}",
-    id,
-    refresh_token,
-    is_revoked,
-    expires_at,
-    created_at,
-    updated_at
-)]
+#[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub id: Uuid,
@@ -40,5 +32,21 @@ impl Session {
 
     pub fn is_expired(&self) -> bool {
         self.expires_at < Utc::now()
+    }
+}
+
+impl fmt::Display for Session {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Session: {{ id: {}, user_id: {}, refresh_token: {}, is_revoked: {}, expires_at: {}, created_at: {}, updated_at: {} }}",
+            self.id,
+            self.user_id,
+            self.refresh_token,
+            self.is_revoked,
+            self.expires_at,
+            self.created_at,
+            self.updated_at
+        )
     }
 }

@@ -1,7 +1,6 @@
 use anyhow::Context;
 use config::{Config, Environment};
-use derive_more::derive::TryFrom;
-use getset::{Getters, MutGetters, Setters};
+use getset::{Getters, Setters};
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use std::{str::FromStr, sync::LazyLock};
@@ -10,11 +9,11 @@ use crate::utils::AppResult;
 
 pub static CONFIG: LazyLock<AppConfig> = LazyLock::new(|| AppConfig::new().unwrap());
 
-#[derive(Debug, Deserialize, Getters, MutGetters, Clone)]
+#[derive(Debug, Deserialize, Getters, Clone)]
 pub struct AppConfig {
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get = "pub with_prefix")]
     server: ServerConfig,
-    #[getset(get = "pub", get_mut = "pub")]
+    #[getset(get = "pub with_prefix")]
     database: DatabaseConfig,
     pub environment: AppEnvironment,
     #[getset(get = "pub with_prefix")]
@@ -54,11 +53,11 @@ impl AppConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Getters, Setters, Clone)]
+#[derive(Debug, Deserialize, Getters, Clone)]
 pub struct ServerConfig {
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub with_prefix")]
     host: String,
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub with_prefix")]
     port: u16,
     #[getset(get = "pub with_prefix")]
     timeout_in_secs: u64,
@@ -74,10 +73,10 @@ pub struct ServerConfig {
 
 #[derive(Debug, Deserialize, Getters, Setters, Clone)]
 pub struct DatabaseConfig {
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub with_prefix")]
     #[serde(default)]
     username: String,
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub with_prefix")]
     #[serde(default)]
     password: String,
     #[getset(get = "pub with_prefix")]
@@ -86,7 +85,7 @@ pub struct DatabaseConfig {
     #[getset(get = "pub with_prefix")]
     #[serde(default)]
     host: String,
-    #[getset(get = "pub", set = "pub")]
+    #[getset(get = "pub")]
     #[serde(default)]
     name: String,
     #[getset(get = "pub with_prefix")]
@@ -132,7 +131,7 @@ impl From<&str> for PgSslModeExt {
     }
 }
 
-#[derive(Debug, Deserialize, TryFrom, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum AppEnvironment {
     Local,
     Production,

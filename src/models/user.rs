@@ -1,20 +1,11 @@
+use std::fmt;
+
 use chrono::{DateTime, Utc};
-use derive_more::derive::Display;
 use serde::Serialize;
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, FromRow, Display)]
-#[display(
-    "User: {{ id: {}, github_id: {:?}, username: {}, email: {}, avatar_url: {:?}, created_at: {}, updated_at: {} }}",
-    id,
-    github_id,
-    username,
-    email,
-    avatar_url,
-    created_at,
-    updated_at
-)]
+#[derive(Debug, Serialize, FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: Uuid,
@@ -50,5 +41,21 @@ impl User {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
+    }
+}
+
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "User: {{ id: {}, github_id: {:?}, username: {}, email: {}, avatar_url: {:?}, created_at: {}, updated_at: {} }}",
+            self.id,
+            self.github_id,
+            self.username,
+            self.email,
+            self.avatar_url,
+            self.created_at,
+            self.updated_at
+        )
     }
 }
