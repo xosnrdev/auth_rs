@@ -73,11 +73,10 @@ impl fmt::Display for Session {
     /// Provides a human-readable representation of the `Session` instance.
     ///
     /// ## Example Output
-    /// ```
+    /// ```bash
     /// Session: {
     ///   id: "550e8400-e29b-41d4-a716-446655440000",
     ///   user_id: "123e4567-e89b-12d3-a456-426614174000",
-    ///   refresh_token: "abcdef123456",
     ///   is_revoked: false,
     ///   expires_at: "2024-01-01T12:00:00Z",
     ///   created_at: "2024-01-01T11:00:00Z",

@@ -17,14 +17,51 @@ use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    controllers::{
-        delete_me, delete_user, get_all_users, get_me, get_user, health_check, login, logout,
-        refresh_session_by_body, refresh_session_by_cookie, register, revoke_all_sessions,
-        revoke_my_session, revoke_user_session, update_me, update_user,
-    },
+    controllers::*,
     utils::{AppConfig, AppResult, DatabaseConfig},
 };
 
+//----------------------------------------------------------------------
+// Types
+//----------------------------------------------------------------------
+
+/// Holds the application state shared across routes.
+///
+/// ## Fields
+/// - `db_pool`: The database connection pool.
+/// - `config`: The application configuration.
+/// - `key`: A secret key used for cookies.
+#[derive(Debug, Clone, Getters)]
+pub struct AppState {
+    #[getset(get = "pub with_prefix")]
+    db_pool: PgPool,
+    #[getset(get = "pub with_prefix")]
+    config: AppConfig,
+    #[getset(get = "pub with_prefix")]
+    key: Key,
+}
+
+//----------------------------------------------------------------------
+// Implementations
+//----------------------------------------------------------------------
+
+impl FromRef<AppState> for Key {
+    fn from_ref(state: &AppState) -> Self {
+        state.key.to_owned()
+    }
+}
+
+//----------------------------------------------------------------------
+// Methods
+//----------------------------------------------------------------------
+
+/// Runs the application server with the provided configuration.
+///
+/// ## Parameters
+/// - `config`: The application configuration.
+///
+/// ## Returns
+/// - `AppResult<()>`: Indicates success or failure of server execution.
 pub async fn run_application(config: AppConfig) -> AppResult<()> {
     init_tracing()?;
 
@@ -46,6 +83,10 @@ pub async fn run_application(config: AppConfig) -> AppResult<()> {
         .context("Failed to start server")
 }
 
+/// Initializes tracing for logging and diagnostics.
+///
+/// ## Returns
+/// - `AppResult<()>`: Indicates success or failure of tracing initialization.
 fn init_tracing() -> AppResult<()> {
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         format!(
@@ -66,6 +107,13 @@ fn init_tracing() -> AppResult<()> {
         .context("Failed to initialize tracing")
 }
 
+/// Creates a database connection pool.
+///
+/// ## Parameters
+/// - `config`: Database configuration.
+///
+/// ## Returns
+/// - `AppResult<PgPool>`: A connection pool for interacting with the database.
 pub async fn create_connection_pool(config: &DatabaseConfig) -> AppResult<PgPool> {
     PgPoolOptions::new()
         .max_connections(*config.get_max_connections())
@@ -76,22 +124,14 @@ pub async fn create_connection_pool(config: &DatabaseConfig) -> AppResult<PgPool
         .context("Failed to create database connection pool")
 }
 
-#[derive(Debug, Clone, Getters)]
-pub struct AppState {
-    #[getset(get = "pub with_prefix")]
-    db_pool: PgPool,
-    #[getset(get = "pub with_prefix")]
-    config: AppConfig,
-    #[getset(get = "pub with_prefix")]
-    key: Key,
-}
-
-impl FromRef<AppState> for Key {
-    fn from_ref(state: &AppState) -> Self {
-        state.key.to_owned()
-    }
-}
-
+/// Creates the application router with all routes and middleware configured.
+///
+/// ## Parameters
+/// - `db_pool`: The database connection pool.
+/// - `config`: The application configuration.
+///
+/// ## Returns
+/// - `Router`: The configured router.
 pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
     let key = Key::from(config.get_server().get_cookie_secret().as_bytes());
     let state = AppState {
@@ -121,10 +161,8 @@ pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
         .allow_credentials(true);
 
     let trace_layer = TraceLayer::new_for_http();
-
     let timeout_layer = TimeoutLayer::new(timeout);
 
-    // See https://github.com/tokio-rs/axum/discussions/987
     let rate_limit_layer = ServiceBuilder::new()
         .layer(HandleErrorLayer::new(|err: BoxError| async move {
             (
@@ -171,6 +209,7 @@ pub fn create_router(db_pool: PgPool, config: AppConfig) -> Router {
         .with_state(state)
 }
 
+/// Listens for shutdown signals such as `Ctrl+C` or Unix signals.
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
