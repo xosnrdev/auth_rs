@@ -1,6 +1,6 @@
 [package]
 name = "auth"
-version = "0.1.0"
+version = "0.2.0"
 rust-version = "1.83"
 edition = "2021"
 authors = ["Success Kingsley <hello@xosnrdev.tech>"]
@@ -17,7 +17,11 @@ path = "src/main.rs"
 anyhow = "1.0.94"
 argon2 = "0.5.3"
 axum = { version = "0.7.9", features = ["tracing"] }
-axum-extra = { version = "0.9.6", features = ["cookie", "typed-header", "cookie-private"] }
+axum-extra = { version = "0.9.6", features = [
+  "cookie",
+  "typed-header",
+  "cookie-private",
+] }
 chrono = { version = "0.4.38", default-features = false, features = [
   "clock",
   "serde",

@@ -2,7 +2,6 @@ exclude: |
   (?x)^(
     tests/.*|
     CHANGELOG.md
-    .env*
   )$
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

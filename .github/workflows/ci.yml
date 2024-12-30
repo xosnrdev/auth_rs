@@ -16,8 +16,6 @@ permissions:
   contents: read
 
 env:
-  SQLX_VERSION: 0.8.2
-  SQLX_FEATURES: "rustls,postgres"
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
   CLICOLOR: 1
@@ -25,78 +23,50 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:latest
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
-
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
 
-      - name: Wait for PostgreSQL
+      - name: Run Tests
         run: |
-          for i in {1..10}; do
-            pg_isready -h localhost -U postgres && break
-            echo "PostgreSQL is unavailable - sleeping"
-            sleep 5
-          done
-
-      - name: Install SQLx CLI
-        run: |
-          cargo install sqlx-cli --version ${{ env.SQLX_VERSION }} --features ${{ env.SQLX_FEATURES }} --no-default-features --locked
-
-      - name: Run tests
-        env:
-          DATABASE_URL: postgres://postgres:password@localhost:5432/postgres
-          APP__SERVER__COOKIE_SECRET: L5jFo7XYMVC/Rk/13JAIAeSBr0QkhGagoyFEWlesDYtO7invCNHfRpet3Lj6JZWvNzE6i0yNffurDcUZwv8MVQ==
-        run: |
-          cargo sqlx migrate run
-          cargo test
+          nix develop -c cargo test
 
   rustfmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Check formatting
-        run: cargo fmt --all --check
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
+
+      - name: Check Formatting
+        run: |
+          nix develop -c cargo fmt --check
 
   clippy:
     runs-on: ubuntu-latest
-    env:
-      SQLX_OFFLINE: true
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
+
+      - name: Run Clippy
+        run: |
+          nix develop -c cargo clippy -- -D warnings
 
   docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Check documentation
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
+
+      - name: Check Documentation
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items
+        run: |
+          nix develop -c cargo doc --no-deps --document-private-items

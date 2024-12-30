@@ -1,8 +1,6 @@
 /target
 .env
 .DS_Store
-.pgdata
-logfile
 result
 .vscode
 .direnv
